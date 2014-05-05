@@ -56,7 +56,7 @@ define(['breakpoints', 'cookies', 'dispatcher', 'imageLoader', 'nthChild', 'view
 		uniqueModules = {};
 
 	/**
-	 * Fire modules' public load method when document is ready. Taken from the 
+	 * Fire modules' public load method when document is ready. Taken from the
 	 * jQuery ready method.
 	 *
 	 * @author John Resig
@@ -66,12 +66,12 @@ define(['breakpoints', 'cookies', 'dispatcher', 'imageLoader', 'nthChild', 'view
 	 * @return {void}
 	 */
 	/**
-	 * Catch cases where $(document).ready() is called after the browser event 
+	 * Catch cases where $(document).ready() is called after the browser event
 	 * has already occurred.
 	 */
 	if (document.readyState === "complete")
 		/**
-		 * Handle it asynchronously to allow scripts the opportunity to delay 
+		 * Handle it asynchronously to allow scripts the opportunity to delay
 		 * ready.
 		 */
 		setTimeout(documentReady, 1);
@@ -101,7 +101,7 @@ define(['breakpoints', 'cookies', 'dispatcher', 'imageLoader', 'nthChild', 'view
 		window.attachEvent("onload", documentReady);
 	}
 	/**
-	 * Cleanup functions for the document ready method attached in the 
+	 * Cleanup functions for the document ready method attached in the
 	 * bindReady handler.
 	 *
 	 * @author John Resig
