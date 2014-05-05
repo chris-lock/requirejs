@@ -10,7 +10,7 @@
  */
 define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		/** @constant Carousel class. */
-	var	CAROUSEL_CLASS = 'carousel',
+	var CAROUSEL_CLASS = 'carousel',
 		/** @constant Carousel selector. */
 		CAROUSEL_SELECTOR = '.' + CAROUSEL_CLASS,
 		/** @constant Namespace used in jQuery. */
@@ -21,6 +21,10 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		SLIDE_SELECTOR = CAROUSEL_SELECTOR + '-slide',
 		/** @constant Carousel slide active class. */
 		SLIDE_ACTIVE_CLASS = '_active',
+		/** @constant Carousel slide inactive selector. */
+		SLIDE_INACTIVE_SELECTOR = '._inactive',
+		/** @constant Carousel slide hidden selector. */
+		SLIDE_HIDDEN_SELECTOR = '._hidden',
 		/** @constant Carousel inner selector. */
 		CAROUSEL_INNER_SELECTOR = CAROUSEL_SELECTOR + '-inner',
 		/** @constant Carousel nav selector. */
@@ -56,36 +60,40 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		/** @constant The exponential power of the resitence. i.e. x^n */
 		DRAG_SNAP_RESISTANCE_EXPONENT = 3,
 		/** @constant Class added and removed to fix IE8 hover bug */
-		IE8_INACTIVE_CLASS = '_inactive';
+		IE8_INACTIVE_CLASS = '_inactive',
+		/** @constant Event fired when a card becomes active. */
+		ON_CARD_EVENT_ENTER = 'carouselCardEnter',
+		/** @constant Event fired when a card loses active state. */
+		ON_CARD_EVENT_LEAVE = 'carouselCardLEAVE';
 
 		/** @constant Base used for the carousel nav links. */
-	var	NAV_LINK_BASE = 
-		'<a class="' + NAV_LINK_CLASS + ' ' + IE8_INACTIVE_CLASS + ' {{link_class}}" href="#">' + 
-			'{{link_title}} Slide' + 
+	var NAV_LINK_BASE =
+		'<a class="' + NAV_LINK_CLASS + ' ' + IE8_INACTIVE_CLASS + ' {{link_class}}" href="#">' +
+			'{{link_title}} Slide' +
 		'</a>',
 		/** @constant Carousel nav previous link. */
-		NAV_LINK_PREV = 
+		NAV_LINK_PREV =
 			NAV_LINK_BASE
 				.replace('{{link_class}}', NAV_LINK_PREV_CLASS)
 				.replace('{{link_title}}', 'Previous'),
 		/** @constant Carousel nav next link. */
-		NAV_LINK_NEXT = 
+		NAV_LINK_NEXT =
 			NAV_LINK_BASE
 				.replace('{{link_class}}', NAV_LINK_NEXT_CLASS)
 				.replace('{{link_title}}', 'Next'),
 		/** @constant Base used for the carousel pagination links. */
-		PAGINATION_LINK_BASE = 
-			'<li>' + 
-				'<a class="' + PAGINATION_LINK_CLASS + '" href="#">' + 
-					'<span class="' + PAGINATION_LINK_CLASS + '-slide">Slide </span>' + 
-					'<span class="' + PAGINATION_LINK_INDEX_CLASS + '">{{link_number}}</span>' + 
-				'</a>' + 
+		PAGINATION_LINK_BASE =
+			'<li>' +
+				'<a class="' + PAGINATION_LINK_CLASS + '" href="#">' +
+					'<span class="' + PAGINATION_LINK_CLASS + '-slide">Slide </span>' +
+					'<span class="' + PAGINATION_LINK_INDEX_CLASS + '">{{link_number}}</span>' +
+				'</a>' +
 			'</li>',
 		/** @constant Base used for the carousel pagination. */
-		PAGINATION_BASE = 
-			'<ul>{{links}}</ul>' + 
-			'<p class="' + PAGINATION_CLASS + '-count">' + 
-				'of <span class="' + PAGINATION_CLASS + '-total">{{link_total}}</span>' + 
+		PAGINATION_BASE =
+			'<ul>{{links}}</ul>' +
+			'<p class="' + PAGINATION_CLASS + '-count">' +
+				'of <span class="' + PAGINATION_CLASS + '-total">{{link_total}}</span>' +
 			'</p>';
 
 		/** @type {object} Breakpoints supported. */
@@ -145,13 +153,13 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 	function setBreakpointCarousels() {
 		if (breakpointsSupported) {
 			for (var breakpoint in breakpointsSupported) {
-				$breakpointCarousels[breakpoint] = 
+				$breakpointCarousels[breakpoint] =
 					$carousels.filter(CAROUSEL_SELECTOR + '-' + breakpoint);
 			}
 		}
 	}
 	/**
-	 * Set the jQuery object to include new carousels, updates the breakpoint 
+	 * Set the jQuery object to include new carousels, updates the breakpoint
 	 * carousels, abd call rebuild.
 	 *
 	 * @return {void}
@@ -169,7 +177,6 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 	 */
 	function rebuildCarousels() {
 		var $currentBreakpointCarousels = getBreakpointCarousels();
-
 		destroyCarousels();
 		$currentBreakpointCarousels.each(buildCarousel);
 	}
@@ -239,7 +246,7 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 	}
 	/**
 	 * Sets the width of the carousel inner and slides and positions
-	 * 
+	 *
 	 * @return {void}
 	 */
 	function buildCarousel() {
@@ -247,17 +254,13 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 			$slides = getBreakpointSlides($this),
 			$slideActive = getSlideActive($slides);
 
-		if ($slides.length <= 1) {
-			return;
-		}
-
 		var slidesShown = getSlidesShown($this),
 			slideCount = $slides.length,
 			slideCountWithSpacing = slideCount + CAROUSEL_SPACING_SLIDES,
 			slideWidth = (100 / slideCountWithSpacing) + '%',
 			carouselInnerWidth = (slideCountWithSpacing / slidesShown * 100) + '%',
 			slideActiveIndex = $slides.index($slideActive);
-		
+
 		$slides.outerWidth(slideWidth);
 		$this
 			.addClass(DRAGGABLE_CLASS)
@@ -292,10 +295,10 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 			}
 		}
 
-		return $carousel.find(SLIDE_SELECTOR + currentBreakpointClassSuffix);
+		return $carousel.find(SLIDE_SELECTOR + currentBreakpointClassSuffix).not(SLIDE_HIDDEN_SELECTOR);
 	}
 	/**
-	 * Gets the slide with the _active class finds the first breakpoint slide 
+	 * Gets the slide with the _active class finds the first breakpoint slide
 	 * that is its parent or child. If not present, defaults to the first slide.
 	 *
 	 * @param {object} $slides jQuery object for a carousel slides
@@ -305,7 +308,7 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		var $slideActive = $slides.filter('.' + SLIDE_ACTIVE_CLASS),
 			$slideActiveParent = $slides.filter(slideIsActiveParent),
 			$slideActiveChild = $slides.filter(slideIsActiveChild);
-		
+
 		if ($slideActive.length) {
 			return $slideActive.first();
 		}
@@ -345,7 +348,7 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		}
 	}
 	/**
-	 * Gets the number of slides that should be shown for a given carousel at 
+	 * Gets the number of slides that should be shown for a given carousel at
 	 * the current breakpoint.
 	 *
 	 * @return {int} The numbe of slides to be shown.
@@ -359,7 +362,7 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 	}
 	/**
 	 * Builds nav links for a carousel.
-	 * 
+	 *
 	 * @param {object} $carousel jQuery object for a carousel
 	 * @return {void}
 	 */
@@ -368,11 +371,11 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 	}
 	/**
 	 * Builds pagination links for a carousel.
-	 * 
+	 *
 	 * @param {object} $carousel jQuery object for a carousel
 	 * @param {int} slideCount Number of slides in the carousel
 	 * @param {int} slidesShown Number of slides shown in the carousel
-	 * 
+	 *
 	 * @return {void}
 	 */
 	function buildPagination($carousel, slideCount, slidesShown) {
@@ -396,12 +399,14 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 	 * @return {void}
 	 */
 	function setCarouselMoveGlobalVars($carousel) {
-		snapInterval = 1 / getSlidesShown($carousel),
+		var slidesShown = getSlidesShown($carousel);
+
+		snapInterval = 1 / slidesShown,
 		snapIntervalPercent = snapInterval * 100,
 		carouselInnerWidthPercent = getCarouselInnerWidthPercent($carousel),
 		carouselInnerLeftStartPercent = getCarouselInnerLeftStartPrecent($carousel),
 		slideIndexCurrent = getSlideIndexCurrent(carouselInnerWidthPercent, snapIntervalPercent),
-		slideIndexMax = Math.round((carouselInnerWidthPercent - 100) / snapIntervalPercent) - CAROUSEL_SPACING_SLIDES;
+		slideIndexMax =getSlideIndexMax($carousel, slidesShown);
 	}
 	/**
 	 * Gets the carousel inner width as a percent of the carousel width.
@@ -426,7 +431,7 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		return $carouselInner.position().left / $carousel.outerWidth() * 100;
 	}
 	/**
-	 * Gets the index of the current slide based on the carousel inner left and 
+	 * Gets the index of the current slide based on the carousel inner left and
 	 * the carousel step.
 	 *
 	 * @param {int} carouselInnerLeftPecent The left position of the carousel inner
@@ -437,13 +442,32 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		return Math.round(-1 * carouselInnerLeftStartPercent / snapIntervalPercent);
 	}
 	/**
+	 * Gets the maximum carousel index accounting for inactive cards
+	 *
+	 * @param {object} $carousel jQuery object for a carousel
+	 * @param {int} slidesShown Number of slides shown in the carousel
+	 * @return {int} The maximum carousel index
+	 */
+	function getSlideIndexMax($carousel, slidesShown) {
+		var $breakpointSlides = getBreakpointSlides($carousel),
+			$firstInactiveSlide = $breakpointSlides.filter(SLIDE_INACTIVE_SELECTOR).first();
+
+		var slideIndexMax = $breakpointSlides.length - slidesShown,
+			lastActiveSlide = $breakpointSlides.index($firstInactiveSlide) - 1;
+
+		return (lastActiveSlide > -1)
+			? Math.min(slideIndexMax, lastActiveSlide)
+			: slideIndexMax;
+	}
+	/**
 	 * Moves the carsouel to a given slide index.
 	 *
 	 * @param {object} $carousel jQuery object for a carousel
-	 * @param {int} slideIndex The index of the slide to sldie to
+	 * @param {int} slideIndex The index of the slide to slide to
+	 * @param {bool} slideIndexDidNotChange If the slide index did not change
 	 * @return {void}
 	 */
-	function moveCarousel($carousel, slideIndex) {
+	function moveCarousel($carousel, slideIndex, slideIndexDidNotChange) {
 		var $slides = getBreakpointSlides($carousel);
 
 		var slideIndexRound = Math.round(slideIndex),
@@ -453,41 +477,44 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		slideIndex = Math.min(slideIndexRound, slideIndexMax),
 		slideIndex = Math.max(slideIndex, 0);
 
-		var	slidePercent = (slideIndex / slidesShown * -100) + '%';
+		var slidePercent = (slideIndex / slidesShown * -100) + '%';
 
-		var $currentSlide = $slides.eq(slideIndex);
+		var $currentSlideOld = $carousel.find(SLIDE_SELECTOR + '.' + SLIDE_ACTIVE_CLASS),
+			$currentSlide = $slides.eq(slideIndex);
 
-		$carousel
-			.find(SLIDE_SELECTOR + '.' + SLIDE_ACTIVE_CLASS)
-				.removeClass(SLIDE_ACTIVE_CLASS);
+		$currentSlideOld.removeClass(SLIDE_ACTIVE_CLASS);
+		$currentSlide.addClass(SLIDE_ACTIVE_CLASS);
+
 		$slides
 			.find('a')
 				.attr('tabindex', '-1');
 		$currentSlide
-			.addClass(SLIDE_ACTIVE_CLASS);
-		$currentSlide
 			.find('a')
 				.attr('tabindex', '');
-		
+
+		if (!slideIndexDidNotChange) {
+			$currentSlideOld.trigger(ON_CARD_EVENT_LEAVE);
+			$currentSlide.trigger(ON_CARD_EVENT_ENTER);
+		}
+
 		$carousel
 			.find(CAROUSEL_INNER_SELECTOR)
 				.css('left', slidePercent);
 
-		updateNavActive($carousel, slideIndex, slideCount, slidesShown);
+		updateNavActive($carousel, slideIndex, slideIndexMax);
 		updatePaginationActive($carousel, slideIndex, slideCount);
 	}
 	/**
 	 * Updates the carousel nav active states for the current active slide.
-	 * 
+	 *
 	 * @param {object} $carousel jQuery object for a carousel
 	 * @param {int} slideIndex The index of the slide to sldie to
-	 * @param {int} slideCount The total number of slides in the carousel
-	 * @param {int} slidesShown Number of slides shown in the carousel
+	 * @param {int} slideIndexMax The maximum carousel index
 	 * @return {void}
 	 */
-	function updateNavActive($carousel, slideIndex, slideCount, slidesShown) {
+	function updateNavActive($carousel, slideIndex, slideIndexMax) {
 		var isFirstSlide = (slideIndex === 0),
-			isLastSlide = (slideIndex == slideCount - slidesShown);
+			isLastSlide = (slideIndex == slideIndexMax);
 
 		$carousel
 			.find('.' + NAV_LINK_DISABLED_CLASS)
@@ -508,7 +535,7 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 	}
 	/**
 	 * Updates the carousel pagination active states for the current active slide.
-	 * 
+	 *
 	 * @param {object} $carousel jQuery object for a carousel
 	 * @param {int} slideIndex The index of the slide to sldie to
 	 * @param {int} slideCount The total number of slides in the carousel
@@ -526,7 +553,7 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 				.addClass(SLIDE_ACTIVE_CLASS);
 	}
 	/**
-	 * Fires on touchstart or mousedown to update drag start position if it's 
+	 * Fires on touchstart or mousedown to update drag start position if it's
 	 * not a multi-touch event.
 	 *
 	 * @param {object} event The touch or mouse event
@@ -564,7 +591,7 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 			: true;
 	}
 	/**
-	 * Returns the mouse event or event.touches for touchstart and 
+	 * Returns the mouse event or event.touches for touchstart and
 	 * event.changedTouches for touch end since they're different for each event.
 	 *
 	 * @param {object} event The touch or mouse event
@@ -578,7 +605,7 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		}
 	}
 	/**
-	 * Prevents default mouse events since they will try to move imgs and 
+	 * Prevents default mouse events since they will try to move imgs and
 	 * prevents default touch events after the minimum drag has been reached.
 	 *
 	 * @param {object} event The touch or mouse event
@@ -587,14 +614,14 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 	function preventDefaultEvents(event) {
 		if (!isTouch || dragIsMin()) {
 			event = (isTouch)
-				? event.originalEvent 
+				? event.originalEvent
 				: event;
 
 			event.preventDefault();
 		}
 	}
 	/**
-	 * Checks if the minimum scroll has been reached. Sets dragStartIsLongEnough to false 
+	 * Checks if the minimum scroll has been reached. Sets dragStartIsLongEnough to false
 	 * if not so the carousel doesn't jump on mobile.
 	 *
 	 * @return {bool} Drag was long enough
@@ -605,12 +632,12 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		} else {
 			dragStartIsLongEnough = true;
 		}
-		
+
 		return dragStartIsLongEnough;
 	}
 	/**
 	 * Binds mouse or touch move and prevents default since images aren't dragged.
-	 * 
+	 *
 	 * @param {object} event The touch or mouse event
 	 * @return {void}
 	 */
@@ -624,7 +651,7 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 	}
 	/**
 	 * Drags slide and prevents default since images aren't dragged.
-	 * 
+	 *
 	 * @param {object} $carousel jQuery object for a carousel
 	 * @param {int} dragStart The starting drag position
 	 * @param {int} dragCurrent The current drag position
@@ -637,14 +664,14 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		setDragSpeed();
 
 		var carouselInnerLeftCurrent = carouselInnerLeftStartPercent + dragPercent + '%';
-				
+
 		$carousel
 			.find(CAROUSEL_INNER_SELECTOR)
 				.css('left', carouselInnerLeftCurrent);
 	}
 	/**
 	 * Sets the current drag speed.
-	 * 
+	 *
 	 * @return {void}
 	 */
 	function setDragSpeed() {
@@ -655,7 +682,7 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 	}
 	/**
 	 * Gets the drag percent and adjusts for resistence on the first and last slide.
-	 * 
+	 *
 	 * @param {object} $carousel jQuery object for a carousel
 	 * @param {int} dragStart The starting drag position
 	 * @param {int} dragCurrent The current drag position
@@ -667,9 +694,9 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		return dragRatio * 100;
 	}
 	/**
-	 * Calculates ratio of drag to carousel width and adds snap resistence at 
+	 * Calculates ratio of drag to carousel width and adds snap resistence at
 	 * the intervals and ends of the carousel.
-	 * 
+	 *
 	 * @param {int} dragCurrent The current drag position
 	 * @param {int} dragCurrent The starting drag position
 	 * @param {int} carouselWidth The width of the carousel
@@ -683,14 +710,14 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 			snapIntervalBase = Math.floor(dragRatioAbsolute / snapInterval) * snapInterval;
 
 		return getDragRatioAdjusted(
-			dragRatioRelativeToSnap, 
-			dragDirection, 
+			dragRatioRelativeToSnap,
+			dragDirection,
 			snapIntervalBase
 		);
 	}
 	/**
 	 * Gets the drag adjusted for snap points and end points.
-	 * 
+	 *
 	 * @param {int} dragRatioRelativeToSnap The drag ratio relative to the interval
 	 * @param {int} dragDirection The drag direction, psotive or negative
 	 * @param {int} snapIntervalBase If we've already passed a snap point, use that as the base
@@ -702,12 +729,12 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 			dragRatioRelativeToSnapAdjusted = dragRatioRelativeToSnap * dragRatioSnapScalar,
 			slideIndexBase = Math.round(snapIntervalBase / snapInterval);
 
-		var	isCarouselStart = (slideIndexCurrent - slideIndexBase <= 0),
+		var isCarouselStart = (slideIndexCurrent - slideIndexBase <= 0),
 			draggingBackwards = (dragDirection > 0);
 
-		var	isCarouselEnd = (slideIndexCurrent + snapIntervalBase >= slideIndexMax),
+		var isCarouselEnd = (slideIndexCurrent + snapIntervalBase >= slideIndexMax),
 			draggingForwards = (dragDirection < 0);
-			
+
 		if (isCarouselStart && draggingBackwards) {
 			dragRatioRelativeToSnapAdjusted = dragRatioRelativeToSnapAdjustedForBounds(
 				dragRatioForInterval,
@@ -730,7 +757,7 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 	}
 	/**
 	 * Gets the scalar used to adjust the drag ratio for snaps.
-	 * 
+	 *
 	 * @param {int} dragRatioForInterval The drag ratio as a ratio of the snap interval
 	 * @return {int} Drag ratio snap scalar
 	 */
@@ -758,16 +785,16 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		return dragRatioSnapScalar;
 	}
 	/**
-	 * Gets the scalar used to create the illusion of snapping. Using 
-	 * exponential equations, the drag is adjusted so that dragging the cursor 
-	 * or touch event 1px does not move the carousel 1px. If graphed, these 
+	 * Gets the scalar used to create the illusion of snapping. Using
+	 * exponential equations, the drag is adjusted so that dragging the cursor
+	 * or touch event 1px does not move the carousel 1px. If graphed, these
 	 * equations will interect at the snapThreshold and 1 - snapThreshold.
 	 *
 	 * For 2 or quadratic
 	 * y = x
 	 * y = 10x^2
 	 * y = -10(x-1)^2+1
-	 * 
+	 *
 	 * For 3 or cubic
 	 * y = x
 	 * y = 100x^3
@@ -790,9 +817,9 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		return dragRatioSnap / dragRatioForInterval || 0;
 	}
 	/**
-	 * Adjusts the drag ratio so that it's half as efficient outsides the bounds 
+	 * Adjusts the drag ratio so that it's half as efficient outsides the bounds
 	 * and sets a max for when the snapIntervalBase increases.
-	 * 
+	 *
 	 * @param {int} dragRatioForInterval The drag ratio as a ratio of the snap interval
 	 * @param {int} dragRatioRelativeToSnap The drag ratio relative to the interval
 	 * @param {int} snapInterval The interval in which we are dragging
@@ -807,20 +834,21 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		return Math.min(dragRatioTotalAdjusted, snapInterval / 2);
 	}
 	/**
-	 * Checks to see if the darg was long enough and passes the drag percent to 
+	 * Checks to see if the drag was long enough and passes the drag percent to
 	 * moveCarousel to update the carousel.
-	 * 
+	 *
 	 * @param {object} event The touch or mouse event
 	 * @return {void}
 	 */
 	function onEndEvent(event) {
 		var $this = $(this);
 
-		var wasDragging = isDragging;
+		var wasDragging = isDragging,
+			slideIndexDidNotChange = true;
 
 		isDragging = false;
 		$this.addClass(DRAGGED_CLASS).removeClass(DRAGGING_CLASS);
-		
+
 		setDragSpeed();
 
 		if (wasDragging) {
@@ -828,15 +856,16 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 				dragEndMin = snapIntervalPercent / 2,
 				dragPercentAbsoluteWidthSpeed = Math.abs(dragPercent) + dragSpeed,
 				dragEndIsLongEnough = dragPercentAbsoluteWidthSpeed > dragEndMin;
-				
+
 			if (dragStartIsLongEnough && dragEndIsLongEnough) {
 				var dragPercentWithSpeed = dragDirection * dragPercentAbsoluteWidthSpeed,
-					slideIndexChange = getSlideIndexChange(dragPercentWithSpeed);
+					slideIndexChange = getSlideIndexChange(dragPercentWithSpeed),
+					slideIndexDidNotChange = false;
 
 				slideIndexCurrent = slideIndexCurrent - slideIndexChange;
 			}
-			
-			moveCarousel($this, slideIndexCurrent);
+
+			moveCarousel($this, slideIndexCurrent, slideIndexDidNotChange);
 		}
 	}
 	/**
@@ -856,7 +885,7 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		return slideIndexChange;
 	}
 	/**
-	 * Moves the carousel forward or backwards one slide and sets disabled 
+	 * Moves the carousel forward or backwards one slide and sets disabled
 	 * classes when the at the start or end.
 	 *
 	 * @param {object} event Click event
@@ -869,11 +898,11 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		if (!$this.hasClass(NAV_LINK_DISABLED_CLASS)) {
 			var isPrevClick = $this.hasClass(NAV_LINK_PREV_CLASS),
 				slideIndexOffset = (isPrevClick) ? -1 : 1;
-			
+
 			setCarouselMoveGlobalVars($carousel);
 			moveCarousel($carousel, slideIndexCurrent + slideIndexOffset);
 		}
-		
+
 		preventDefault(event);
 	}
 	/**
@@ -932,7 +961,7 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		return (event.which === 13);
 	}
 	/**
-	 * Toggles an inactive class to fix the hover bug in IE8 where the hover 
+	 * Toggles an inactive class to fix the hover bug in IE8 where the hover
 	 * class sticks after a menu is closed.
 	 *
 	 * @return {void}
@@ -941,6 +970,19 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		var $this = $(this);
 
 		$this.toggleClass(IE8_INACTIVE_CLASS);
+	}
+	/**
+	 * Adds an event that is fired when a card becomes active on inactive.
+	 *
+	 * @param {object} $card jQuery object containging the card or cards selector
+	 * @param {function} callback The function to fired when the card becomes active
+	 * @param {string} cardEvent The enter or leave event name
+	 * @return {void}
+	 */
+	function onCardEvent($card, callback, cardEvent) {
+		if ($.isFunction(callback)) {
+			$card.bind(cardEvent, callback);
+		}
 	}
 
 	return {
@@ -958,6 +1000,52 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		 *
 		 * @return {void}
 		 */
-		rebuild: buildCarousels
+		rebuild: buildCarousels,
+		/**
+		 * Makes a card active.
+		 *
+		 * @param {object} $carousel jQuery object containging the carousel
+		 * @return {void}
+		 */
+		update: function($carousel) {
+			setCarouselMoveGlobalVars($carousel);
+			updateNavActive($carousel, slideIndexCurrent, slideIndexMax);
+			updatePaginationActive($carousel, slideIndexCurrent, getBreakpointSlides($carousel).length);
+		},
+		/**
+		 * Makes a card active.
+		 *
+		 * @param {object} $card jQuery object containging the card
+		 * @return {void}
+		 */
+		setActive: function($card) {
+			var $carousel = $card.parents(CAROUSEL_SELECTOR),
+				$slides = getBreakpointSlides($carousel);
+
+			var slideIndex = $slides.index($card);
+
+			setCarouselMoveGlobalVars($carousel);
+			moveCarousel($carousel, slideIndex);
+		},
+		/**
+		 * Adds an event that is fired when a card becomes active.
+		 *
+		 * @param {object} $card jQuery object containging the card or cards selector
+		 * @param {function} callback The function to fired when the card becomes active
+		 * @return {void}
+		 */
+		onCardEnter: function($card, callback) {
+			onCardEvent($card, callback, ON_CARD_EVENT_ENTER);
+		},
+		/**
+		 * Adds an event that is fired when a card loses active state.
+		 *
+		 * @param {object} $card jQuery object containging the card or cards selector
+		 * @param {function} callback The function to fired when the card loses active state
+		 * @return {void}
+		 */
+		onCardLeave: function($card, callback) {
+			onCardEvent($card, callback, ON_CARD_EVENT_LEAVE);
+		}
 	};
 });
