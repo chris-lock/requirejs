@@ -1,6 +1,6 @@
 /**
- * The viewport utility handles window events and returns an object with the 
- * current viewport height, width, scroll top, scoll bottom, scroll total and 
+ * The viewport utility handles window events and returns an object with the
+ * current viewport height, width, scroll top, scoll bottom, scroll total and
  * scroll distance.
  *
  * @author Chris Lock
@@ -56,11 +56,13 @@ define(['dispatcher'], function(dispatcher) {
 		/** @type {int} The current document height. */
 		documentHeight = 0,
 		/** @type {int} The id for timeout used in scrollTo. */
-		scrollTimeoutId = null;
+		timeoutIdScrollTo = null,
+		/** @type {int} The id for request animaiton frame used in scrollTo. */
+		animationFrameIdScrollTo = null;
 
 	/**
 	 * Binds window resize and scroll.
-	 * 
+	 *
 	 * @return {void}
 	 */
 	function load() {
@@ -91,10 +93,10 @@ define(['dispatcher'], function(dispatcher) {
 		for(var i = vendors.length - 1; i > -1 && !window.requestAnimationFrame; i--) {
 			window.requestAnimationFrame = window[vendors[i]+'RequestAnimationFrame'];
 			window.cancelAnimationFrame =
-				window[vendors[i]+'CancelAnimationFrame'] || 
+				window[vendors[i]+'CancelAnimationFrame'] ||
 				window[vendors[i]+'CancelRequestAnimationFrame'];
 		}
-		
+
 		if (!window.requestAnimationFrame)
 			window.requestAnimationFrame = function(callback) {
 				callback();
@@ -122,8 +124,8 @@ define(['dispatcher'], function(dispatcher) {
 		return 0;
 	}
 	/**
-	 * Rather than run a polyfill inside getWindowWidth and getWindowHeight 
-	 * every time it's called, let's optimize it to just return the right 
+	 * Rather than run a polyfill inside getWindowWidth and getWindowHeight
+	 * every time it's called, let's optimize it to just return the right
 	 * property.
 	 *
 	 * @return {void}
@@ -153,7 +155,7 @@ define(['dispatcher'], function(dispatcher) {
 		}
 	}
 	/**
-	 * Gets the document scroll top. Set as an empty function to be optimized 
+	 * Gets the document scroll top. Set as an empty function to be optimized
 	 * later.
 	 *
 	 * @return {int} The document scroll top.
@@ -205,7 +207,7 @@ define(['dispatcher'], function(dispatcher) {
 
 		if (documentHeight <= document.body.scrollHeight) {
 			documentHeight = document.body.scrollHeight;
-		
+
 			getDocumentHeight = function() {
 				return document.body.scrollHeight;
 			}
@@ -213,7 +215,7 @@ define(['dispatcher'], function(dispatcher) {
 
 		if (documentHeight <= document.body.offsetHeight) {
 			documentHeight = document.body.offsetHeight;
-		
+
 			getDocumentHeight = function() {
 				return document.body.offsetHeight;
 			}
@@ -221,7 +223,7 @@ define(['dispatcher'], function(dispatcher) {
 
 		if (documentHeight <= document.documentElement.clientHeight) {
 			documentHeight = document.documentElement.clientHeight;
-		
+
 			getDocumentHeight = function() {
 				return document.documentElement.clientHeight;
 			}
@@ -229,7 +231,7 @@ define(['dispatcher'], function(dispatcher) {
 
 		if (documentHeight <= document.documentElement.scrollHeight) {
 			documentHeight = document.documentElement.scrollHeight;
-		
+
 			getDocumentHeight = function() {
 				return document.documentElement.scrollHeight;
 			}
@@ -237,7 +239,7 @@ define(['dispatcher'], function(dispatcher) {
 
 		if (documentHeight <= document.documentElement.offsetHeight) {
 			documentHeight = document.documentElement.offsetHeight;
-		
+
 			getDocumentHeight = function() {
 				return document.documentElement.offsetHeight;
 			}
@@ -256,8 +258,8 @@ define(['dispatcher'], function(dispatcher) {
 		currentViewport.scrollMax = getDocumentHeight() - currentViewport.height;
 	}
 	/**
-	 * Wraps handleScroll in requestAnimationFrame to optimize performace and 
-	 * checks to see if we've already requested an animation frame to prevent 
+	 * Wraps handleScroll in requestAnimationFrame to optimize performace and
+	 * checks to see if we've already requested an animation frame to prevent
 	 * stacking.
 	 *
 	 * @return {void}
@@ -278,13 +280,13 @@ define(['dispatcher'], function(dispatcher) {
 	function handleOptimized(hasRequestedAnimationFrame, animationFrameId, method) {
 		if (!hasRequestedAnimationFrame) {
 			hasRequestedAnimationFrame = true;
-			
+
 			cancelAnimationFrame(animationFrameId);
 			animationFrameId = requestAnimationFrame(method);
 		}
 	}
 	/**
-	 * Fires all viewport.scroll, viewport.scrollUp, and viewport.scrollDown 
+	 * Fires all viewport.scroll, viewport.scrollUp, and viewport.scrollDown
 	 * callbacks based on the scroll direction.
 	 *
 	 * @return {void}
@@ -302,13 +304,13 @@ define(['dispatcher'], function(dispatcher) {
 
 		updateCurrentViewport();
 		updateCurrentViewportScroll();
-		
+
 		var scrollIsAboveTopOfPage = (windowTopPrev < 0 && currentViewport.scrollTop <= 0),
 			scrollIsBellowBottomOfPage = (windowTopPrev > currentViewport.scrollMax && currentViewport.scrollTop >= currentViewport.scrollMax);
 
 		if (scrollIsAboveTopOfPage || scrollIsBellowBottomOfPage)
 			return;
-		
+
 		dispatcher.fireCallbacks(callbacks.scroll, currentViewport);
 
 		if (windowTopPrev > currentViewport.scrollTop)
@@ -345,8 +347,8 @@ define(['dispatcher'], function(dispatcher) {
 		}, scrollTimerLatency);
 	}
 	/**
-	 * Wraps handleResize in requestAnimationFrame to optimize performace and 
-	 * checks to see if we've already requested an animation frame to prevent 
+	 * Wraps handleResize in requestAnimationFrame to optimize performace and
+	 * checks to see if we've already requested an animation frame to prevent
 	 * stacking.
 	 *
 	 * @return {void}
@@ -431,7 +433,7 @@ define(['dispatcher'], function(dispatcher) {
 	function getOffset(element) {
 		var positionX = 0,
 			positionY = 0;
-	
+
 		while (element) {
 			positionX += (element.offsetLeft - element.scrollLeft + element.clientLeft);
 			positionY += (element.offsetTop - element.scrollTop + element.clientTop);
@@ -444,31 +446,80 @@ define(['dispatcher'], function(dispatcher) {
 		};
 	}
 	/**
-	 * Animates the window scrolling to a given position in a given time.
+	 * Animates the window scrolling to a given position in a given time using
+	 * requestAnimationFrame if available.
 	 *
 	 * @src http://javascript.info/tutorial/animation
 	 *
-	 * @todo Add requestAnimationFrame support.
-	 * 
 	 * @param {int} scrollY The final scroll position
 	 * @param {int} duration The time to scroll in
 	 * @return {void}
 	 */
 	function scrollTo(scrollY, duration) {
+		var timeStart = new Date().getTime();
+
+		if (requestAnimationFrameIsSupported) {
+			cancelAnimationFrame(animationFrameIdScrollTo);
+
+			animationFrameIdScrollTo = requestAnimationFrame(function() {
+				scrollToWithRequestAnimationFrame(scrollY, timeStart, duration);
+			});
+		} else {
+			clearTimeout(timeoutIdScrollTo);
+
+			scrollToWithTimeout(scrollY, duration);
+		}
+	}
+	/**
+	 * Animates the window scrolling to a given position in a given time with
+	 * requestAnimationFrame.
+	 *
+	 * @src http://javascript.info/tutorial/animation
+	 *
+	 * @param {int} scrollY The final scroll position
+	 * @param {int} timeStart The time the animation started
+	 * @param {int} duration The time to scroll in
+	 * @return {void}
+	 */
+	function scrollToWithRequestAnimationFrame(scrollY, timeStart, duration) {
+		var time = new Date().getTime(),
+			difference = scrollY - currentViewport.scrollTop,
+			scrollYNew = ((time - timeStart) / duration * scrollY) % scrollY;
+
+		if (time >= (timeStart + duration))
+			scrollYNew = scrollY;
+
+		window.scrollTo(0, scrollYNew);
+
+		if (scrollYNew < scrollY)
+			animationFrameIdScrollTo = requestAnimationFrame(function() {
+				scrollToWithRequestAnimationFrame(scrollY, timeStart, duration);
+			});
+	}
+	/**
+	 * Animates the window scrolling to a given position in a given time with
+	 * setTimeout.
+	 *
+	 * @src http://javascript.info/tutorial/animation
+	 *
+	 * @param {int} scrollY The final scroll position
+	 * @param {int} duration The time to scroll in
+	 * @return {void}
+	 */
+	function scrollToWithTimeout(scrollY, duration) {
 		if (duration < 0)
 			return;
 
 		var difference = scrollY - currentViewport.scrollTop,
-			perTick = difference / duration * 10;
+			differencePerInterval = difference / duration * 10,
+			scrollYNew = currentViewport.scrollTop + differencePerInterval;
 
-		scrollTimeoutId = setTimeout(function() {
-			window.scrollTo(0, currentViewport.scrollTop + perTick);
+		timeoutIdScrollTo = setTimeout(function() {
+			window.scrollTo(0, scrollYNew);
 			handleScroll();
 
-			if (currentViewport.scrollTop == scrollY)
-				return;
-
-			scrollTo(scrollY, duration - 10);
+			if (scrollYNew < scrollY)
+				scrollToWithTimeout(scrollY, duration - 10);
 		}, 10);
 	}
 	/**
@@ -525,8 +576,6 @@ define(['dispatcher'], function(dispatcher) {
 					currentViewport.scrollMax
 				);
 
-			clearTimeout(scrollTimeoutId);
-
 			scrollTo(maxScroll, SCROLL_TO_SPEED);
 		},
 		/**
@@ -546,14 +595,14 @@ define(['dispatcher'], function(dispatcher) {
 			scrollTop[namespace] = currentViewport.scrollTop;
 		},
 		/**
-		 * Resets the scrollTop for a given namespace and prevents scroll events 
+		 * Resets the scrollTop for a given namespace and prevents scroll events
 		 * from firing.
 		 *
 		 * @return {object} Current viewport
 		 */
 		resetScrollTop: function(namespace) {
 			var namespaceScrollTop = scrollTop[namespace];
-			
+
 			if (typeof namespaceScrollTop !== "undefined") {
 				resetScrollTopEnd = namespaceScrollTop;
 				isScrolling = false;
