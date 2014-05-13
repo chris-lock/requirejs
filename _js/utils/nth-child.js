@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Adds nth-child class to avoid issues with legacy values. Uses 'data-nth_child'
  * so 'data-nth_child="li:nth-child(3n-1)"' would add the class
@@ -79,7 +81,7 @@
 	 */
 	function removeOldNthChildrenClass(elem, nthChildClass) {
 		updateElementClass(
-			elem.querySelectorAll(nthChildClass),
+			elem.querySelectorAll('.' + nthChildClass),
 			removeClass,
 			nthChildClass
 		);
@@ -93,12 +95,13 @@
 	 * @return {void}
 	 */
 	function updateElementClass(elems, classMethod, className) {
-		for (var i = elems.length - 1; i > -1; i--)
+		for (var i = elems.length - 1; i > -1; i--) {
 			classMethod.call(
 				null,
 				elems[i],
 				className
 			);
+		}
 	}
 	/**
 	 * Removes a class to an element.
@@ -108,10 +111,11 @@
 	 * @return {void}
 	 */
 	function removeClass(elem, className) {
-		if (elem.classList)
+		if (elem.classList) {
 			elem.classList.remove(className);
-		else
+		} else {
 			elem.className = elem.className.split(className).join('').replace('  ', ' ').replace(/^\s+|\s+$/g, '');
+		}
 	}
 	/**
 	 * Gets the selector as a valid css class.
@@ -136,10 +140,11 @@
 	 * @return {void}
 	 */
 	function addClass(elem, className) {
-		if (elem.classList)
+		if (elem.classList) {
 			elem.classList.add(className);
-		else
+		} else {
 			elem.className = elem.className.split(' ').push(className).join(' ');
+		}
 	}
 	/**
 	 * All modules should load themselves.
