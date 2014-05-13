@@ -1,7 +1,7 @@
 /**
  * Adds nth-child class to avoid issues with legacy values. Uses 'data-nth_child'
- * so 'data-nth_child="li:nth-child(3n-1)"' would add the class 
- * 'nth-child-3n-minus-1' to the 2nd, 5th, 8th items and so on. You can target 
+ * so 'data-nth_child="li:nth-child(3n-1)"' would add the class
+ * 'nth-child-3n-minus-1' to the 2nd, 5th, 8th items and so on. You can target
  * mutiple selectors by seperating them by a coma.
  *
  * @author Chris Lock
@@ -12,10 +12,6 @@
  define([], function() {
 		/** @constant The nth-child data attr. */
 	var	DATA_NTH_CHILD = 'data-nth_child',
-		/** @constant The class added once loaded. */
-		LOADED_CLASS = '_loaded',
-		/** @constant The selector of loaded elements. */
-		LOADED_SELECTOR = '.' + LOADED_CLASS,
 		/** @constant The replacement for nth+. */
 		NTH_PLUS = '-plus-',
 		/** @constant The replacement for nth-. */
@@ -31,8 +27,9 @@
 	function load() {
 		var nthParents = document.querySelectorAll('[' + DATA_NTH_CHILD + ']');
 
-		for (var i = nthParents.length - 1; i > -1; i--)
-			addNthClass(nthParents[i]);
+		for (var i = nthParents.length - 1; i > -1; i--) {
+			addNthClasses(nthParents[i]);
+		}
 	}
 	/**
 	 * Adds nth-child classes to each element.
@@ -40,20 +37,17 @@
 	 * @param {object} elem The parent of the nth-children
 	 * @return {void}
 	 */
-	function addNthClass(elem) {
-		var nthCssSelectors = elem.getAttribute(DATA_NTH_CHILD).split(','),
+	function addNthClasses(elem) {
+		var nthCssSelectors = elem.getAttribute(DATA_NTH_CHILD).split(', ').join(',').split(','),
 			nthCssSelector = '',
-			nthChildren = '';
+			nthChildClass = '';
 
 		for (var i = nthCssSelectors.length - 1; i > -1; i--) {
-			nthCssSelector = nthCssSelectors[i],
-			nthChildren = elem.querySelectorAll(nthCssSelector);
+			nthCssSelector = nthCssSelectors[i];
+			nthChildClass = getNthChildClass(nthCssSelector);
 
-			for (var j = nthChildren.length - 1; j > -1; j--)
-				addClass(
-					nthChildren[j],
-					getNthChildClass(nthCssSelector)
-				);
+			removeOldNthChildrenClass(elem, nthChildClass);
+			addNthClass(elem, nthCssSelector, nthChildClass);
 		}
 	}
 	/**
@@ -65,7 +59,7 @@
 	function getNthChildClass(nthCssSelector) {
 		var nthCssSelectors = nthCssSelector.replace(')', '').split(':nth-child('),
 			nthSelector = nthCssSelectors.pop();
-		
+
 		nthSelector = nthSelector
 			.replace(' ', '')
 			.split('-')
@@ -75,6 +69,64 @@
 
 		return NTH_CLASS_BASE
 			.replace('{{NTH_SELECTOR}}', nthSelector);
+	}
+	/**
+	 * Gets the selector as a valid css class.
+	 *
+	 * @param {object} elem The parent of the nth-children
+	 * @param {string} nthChildClass The class added to nth children
+	 * @return {void}
+	 */
+	function removeOldNthChildrenClass(elem, nthChildClass) {
+		updateElementClass(
+			elem.querySelectorAll(nthChildClass),
+			removeClass,
+			nthChildClass
+		);
+	}
+	/**
+	 * Adds or removes a class for a given selector.
+	 *
+	 * @param {array} elems An array of elements
+	 * @param {function} classMethod The method name either addClass or removeClass
+	 * @param {string} className The class to add or remove
+	 * @return {void}
+	 */
+	function updateElementClass(elems, classMethod, className) {
+		for (var i = elems.length - 1; i > -1; i--)
+			classMethod.call(
+				null,
+				elems[i],
+				className
+			);
+	}
+	/**
+	 * Removes a class to an element.
+	 *
+	 * @param {object} elem The element
+	 * @param {string} className The class to add
+	 * @return {void}
+	 */
+	function removeClass(elem, className) {
+		if (elem.classList)
+			elem.classList.remove(className);
+		else
+			elem.className = elem.className.split(className).join('').replace('  ', ' ').replace(/^\s+|\s+$/g, '');
+	}
+	/**
+	 * Gets the selector as a valid css class.
+	 *
+	 * @param {object} elem The parent of the nth-children
+	 * @param {string} nthCssSelector The selector we want to add the class to
+	 * @param {string} nthChildClass The class added to nth children
+	 * @return {void}
+	 */
+	function addNthClass(elem, nthCssSelector, nthChildClass) {
+		updateElementClass(
+			elem.querySelectorAll(nthCssSelector),
+			addClass,
+			nthChildClass
+		);
 	}
 	/**
 	 * Adds a class to an element.
@@ -87,7 +139,7 @@
 		if (elem.classList)
 			elem.classList.add(className);
 		else
-			elem.className += ' ' + className;
+			elem.className = elem.className.split(' ').push(className).join(' ');
 	}
 	/**
 	 * All modules should load themselves.
