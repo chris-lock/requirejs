@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * The viewport utility handles window events and returns an object with the
  * current viewport height, width, scroll top, scoll bottom, scroll total and
@@ -34,17 +36,32 @@ define(['dispatcher'], function(dispatcher) {
 		hasRequestedAnimationFrameResize = false,
 		/** @type {bool} Should we fire window scroll events. */
 		isScrolling = true,
+		/** @type {bool} Is this touch scrolling. */
+		isTouchScrolling = false,
+		/** @type {int} The scrollTop when touch started. */
+		scrollTopTouchStart = 0,
+		/** @type {int} The client y when touch started. */
+		scrollTouchClientYStart = 0,
+		/** @type {int} The client y durring touch events. */
+		scrollTouchClientYCurrent = 0,
+		/** @type {int} The page y when touch started. */
+		scrollTouchPageYStart = 0,
+		/** @type {int} The page y durring touch events. */
+		scrollTouchPageYCurrent = 0,
 		/** @type {int} The timer used to detect scroll stop. */
 		scrollTimer = setTimeout(function() {}),
 		/** @type {int} The number of milliseconds of inactivity considered a scroll stop. */
 		scrollTimerLatency = 300,
-		/** @type {int} The maxixmum distance the window can scroll. */
-		windowTop = 0,
 		/** @type {object} Callback queue for each event. */
 		callbacks = {
 			scroll: [],
 			scrollUp: [],
 			scrollDown: [],
+			touch: {
+				scroll: [],
+				scrollUp: [],
+				scrollDown: []
+			},
 			resize: []
 		},
 		/** @type {object} Set scrollTop values for different namespaces. */
@@ -66,13 +83,40 @@ define(['dispatcher'], function(dispatcher) {
 	 * @return {void}
 	 */
 	function load() {
+		updateGetFunctions();
+		updateCurrentViewport();
+		bindScrollEvents();
+		bindResizeEvents();
+	}
+	/**
+	 * We update all get functions to reduce the overhead added by polyfills.
+	 *
+	 * @return {void}
+	 */
+	function updateGetFunctions() {
 		updateRequestAnimationFrame();
 		updateGetWindowDimensions();
-		updateGetDocumentScrollTop()
+		updateGetDocumentScrollTop();
 		updateGetDocumentHeight();
-
-		updateCurrentViewport();
+	}
+	/**
+	 * Binds window scroll for default events and touch events for touch scroll.
+	 *
+	 * @return {void}
+	 */
+	function bindScrollEvents() {
 		window.onscroll = handleScrollOptimized;
+		addEvent('touchstart', startTouchScroll);
+		addEvent('touchmove', handleTouchScroll);
+		addEvent('touchend', endTouchScroll);
+		addEvent('touchcancel', endTouchScroll);
+	}
+	/**
+	 * Binds resize events and watches the dom for height changes.
+	 *
+	 * @return {void}
+	 */
+	function bindResizeEvents() {
 		window.onresize = handleResizeOptimized;
 		watchHtmlResize();
 	}
@@ -97,32 +141,30 @@ define(['dispatcher'], function(dispatcher) {
 				window[vendors[i]+'CancelRequestAnimationFrame'];
 		}
 
-		if (!window.requestAnimationFrame)
+		if (!window.requestAnimationFrame) {
 			window.requestAnimationFrame = function(callback) {
 				callback();
 			};
-		else
+		} else {
 			requestAnimationFrameIsSupported = true;
+		}
 
-		if (!window.cancelAnimationFrame)
+		if (!window.cancelAnimationFrame) {
 			window.cancelAnimationFrame = function() {};
+		}
 	}
 	/**
-	 * Gets the window width. Set as an empty function to be optimized later.
+	 * Gets the window width. Set as an optimized function later.
 	 *
 	 * @return {int} The window width.
 	 */
-	function getWindowWidth() {
-		return 0;
-	}
+	var getWindowWidth;
 	/**
-	 * Gets the window height. Set as an empty function to be optimized later.
+	 * Gets the window height. Set as an optimized function later.
 	 *
 	 * @return {int} The window height.
 	 */
-	function getWindowHeight() {
-		return 0;
-	}
+	var getWindowHeight;
 	/**
 	 * Rather than run a polyfill inside getWindowWidth and getWindowHeight
 	 * every time it's called, let's optimize it to just return the right
@@ -160,9 +202,7 @@ define(['dispatcher'], function(dispatcher) {
 	 *
 	 * @return {int} The document scroll top.
 	 */
-	function getDocumentScrollTop() {
-		return 0;
-	}
+	var getDocumentScrollTop;
 	/**
 	 * It's possible to run a polyfill inside getDocumentScrollTop, but let's
 	 * just return the right property.
@@ -173,29 +213,27 @@ define(['dispatcher'], function(dispatcher) {
 		if (window.pageYOffset !== undefined) {
 			getDocumentScrollTop = function() {
 				return window.pageYOffset;
-			}
+			};
 		} else if (document.documentElement) {
 			getDocumentScrollTop = function() {
 				return document.documentElement.scrollTop;
-			}
+			};
 		} else if (document.body.parentNode) {
 			getDocumentScrollTop = function() {
 				return document.body.parentNode.scrollTop;
-			}
+			};
 		} else if (document.body) {
 			getDocumentScrollTop = function() {
 				return document.body.scrollTop;
-			}
+			};
 		}
 	}
 	/**
-	 * Gets the document height. Set as an empty function to be optimized later.
+	 * Gets the document height. Set as an optimized function later.
 	 *
 	 * @return {int} The document height.
 	 */
-	function getDocumentHeight() {
-		return 0;
-	}
+	var getDocumentHeight;
 	/**
 	 * It's possible to run Math.max inside of getDocumentHeight, but returning
 	 * the proper property is far more efficient.
@@ -210,7 +248,7 @@ define(['dispatcher'], function(dispatcher) {
 
 			getDocumentHeight = function() {
 				return document.body.scrollHeight;
-			}
+			};
 		}
 
 		if (documentHeight <= document.body.offsetHeight) {
@@ -218,7 +256,7 @@ define(['dispatcher'], function(dispatcher) {
 
 			getDocumentHeight = function() {
 				return document.body.offsetHeight;
-			}
+			};
 		}
 
 		if (documentHeight <= document.documentElement.clientHeight) {
@@ -226,7 +264,7 @@ define(['dispatcher'], function(dispatcher) {
 
 			getDocumentHeight = function() {
 				return document.documentElement.clientHeight;
-			}
+			};
 		}
 
 		if (documentHeight <= document.documentElement.scrollHeight) {
@@ -234,7 +272,7 @@ define(['dispatcher'], function(dispatcher) {
 
 			getDocumentHeight = function() {
 				return document.documentElement.scrollHeight;
-			}
+			};
 		}
 
 		if (documentHeight <= document.documentElement.offsetHeight) {
@@ -242,20 +280,50 @@ define(['dispatcher'], function(dispatcher) {
 
 			getDocumentHeight = function() {
 				return document.documentElement.offsetHeight;
-			}
+			};
 		}
 	}
 	/**
-	 * Updates the current viewport width and height.
+	 * Updates the current viewport width and height, and ensures the scrollTop
+	 * is not outside the window since webkit continues firing scroll events
+	 * when over scrolling.
 	 *
 	 * @return {void}
 	 */
 	function updateCurrentViewport() {
 		currentViewport.width = getWindowWidth();
 		currentViewport.height = getWindowHeight();
-		currentViewport.scrollTop = getDocumentScrollTop();
-		currentViewport.scrollBottom = currentViewport.scrollTop + currentViewport.height;
 		currentViewport.scrollMax = getDocumentHeight() - currentViewport.height;
+		currentViewport.scrollTop = Math.min(
+			currentViewport.scrollMax,
+			Math.max(
+				getDocumentScrollTopAll(),
+				0
+			)
+		);
+		currentViewport.scrollBottom = currentViewport.scrollTop + currentViewport.height;
+	}
+	/**
+	 * A wrapper to get scrollTop for both non touch and touch scrolling.
+	 *
+	 * @return {int} The document scroll top.
+	 */
+	function getDocumentScrollTopAll() {
+		return (isTouchScrolling)
+			? getDocumentScrollTopTouch()
+			: getDocumentScrollTop();
+	}
+	/**
+	 * Gets the approximate scroll top based on the the client y change during
+	 * touch. For some reason this is consistently 10px off.
+	 *
+	 * @return {int} The approximate document scroll top.
+	 */
+	function getDocumentScrollTopTouch() {
+		var scrollTouchClientYChange = scrollTouchClientYStart - scrollTouchClientYCurrent,
+			scrollTouchPageYChange = scrollTouchPageYCurrent - scrollTouchPageYStart;
+
+		return scrollTopTouchStart + scrollTouchClientYChange + scrollTouchPageYChange;
 	}
 	/**
 	 * Wraps handleScroll in requestAnimationFrame to optimize performace and
@@ -281,8 +349,8 @@ define(['dispatcher'], function(dispatcher) {
 		if (!hasRequestedAnimationFrame) {
 			hasRequestedAnimationFrame = true;
 
-			cancelAnimationFrame(animationFrameId);
-			animationFrameId = requestAnimationFrame(method);
+			window.cancelAnimationFrame(animationFrameId);
+			animationFrameId = window.requestAnimationFrame(method);
 		}
 	}
 	/**
@@ -305,18 +373,13 @@ define(['dispatcher'], function(dispatcher) {
 		updateCurrentViewport();
 		updateCurrentViewportScroll();
 
-		var scrollIsAboveTopOfPage = (windowTopPrev < 0 && currentViewport.scrollTop <= 0),
-			scrollIsBellowBottomOfPage = (windowTopPrev > currentViewport.scrollMax && currentViewport.scrollTop >= currentViewport.scrollMax);
+		fireCallbacks('scroll', currentViewport, isTouchScrolling);
 
-		if (scrollIsAboveTopOfPage || scrollIsBellowBottomOfPage)
-			return;
-
-		dispatcher.fireCallbacks(callbacks.scroll, currentViewport);
-
-		if (windowTopPrev > currentViewport.scrollTop)
-			dispatcher.fireCallbacks(callbacks.scrollUp, currentViewport);
-		else if (windowTopPrev != currentViewport.scrollTop)
-			dispatcher.fireCallbacks(callbacks.scrollDown, currentViewport);
+		if (windowTopPrev > currentViewport.scrollTop) {
+			fireCallbacks('scrollUp', currentViewport, isTouchScrolling);
+		} else if (windowTopPrev != currentViewport.scrollTop) {
+			fireCallbacks('scrollDown', currentViewport, isTouchScrolling);
+		}
 	}
 	/**
 	 * Checks the scroll top to see if resetScrollTop has finished.
@@ -345,6 +408,103 @@ define(['dispatcher'], function(dispatcher) {
 		scrollTimer = setTimeout(function() {
 			currentViewport.scrollStart = currentViewport.scrollTop;
 		}, scrollTimerLatency);
+	}
+	/**
+	 * A wrapper for firing callbacks to handle touch and non touch callbacks.
+	 *
+	 * @param {string} callbackType The type of callback being fired
+	 * @param {object} currentViewport The object containing the current viewport
+	 * @param {bool} isTouchScrolling Is this a touch scroll event
+	 * @return {void}
+	 */
+	function fireCallbacks(callbackType, currentViewport, isTouchScrolling) {
+		dispatcher.fireCallbacks(callbacks[callbackType], currentViewport);
+
+		if (isTouchScrolling) {
+			dispatcher.fireCallbacks(callbacks.touch[callbackType], currentViewport);
+		}
+	}
+	/**
+	 * Wrapper for addEventListener since IE8 is a whiny baby and doesn't
+	 * support it.
+	 *
+	 * @return {void}
+	 */
+	function addEvent(event, eventFunction) {
+		if (document.addEventListener) {
+			document.addEventListener(event, eventFunction);
+		}
+	}
+	/**
+	 * Wrapper for addEventListener since IE8 is a whiny baby and doesn't
+	 * support it.
+	 *
+	 * @return {void}
+	 */
+	function startTouchScroll(event) {
+		scrollTopTouchStart = currentViewport.scrollTop;
+		scrollTouchPageYStart = scrollTouchPageYCurrent = getTouchPageY(event);
+		scrollTouchClientYStart = scrollTouchClientYCurrent = getTouchClientY(event);
+	}
+	/**
+	 * Gets the page y from the touch even.
+	 *
+	 * @param {object} event The touch event
+	 * @return {int} The page y.
+	 */
+	function getTouchPageY(event) {
+		return getTouch(event).pageY;
+	}
+	/**
+	 * A wrapper to get touch events since touchstart uses event.touches and
+	 * touchend uses event.changedTouches.
+	 *
+	 * @param {object} event The touch event
+	 * @return {object} The touch.
+	 */
+	function getTouch(event) {
+		var touches = event.touches
+				|| event.changedTouches
+				|| event.originalEvent.touches
+				|| event.originalEvent.changedTouches;
+
+		return touches[0];
+	}
+	/**
+	 * Gets the client y from the touch event.
+	 *
+	 * @param {object} event The touch event
+	 * @return {int} The client y.
+	 */
+	function getTouchClientY(event) {
+		return getTouch(event).clientY;
+	}
+	/**
+	 * Wrapper for addEventListener since IE8 is a whiny baby and doesn't
+	 * support it.
+	 *
+	 * @return {void}
+	 */
+	function handleTouchScroll() {
+		scrollTouchPageYCurrent = getTouchPageY(event);
+		scrollTouchClientYCurrent = getTouchClientY(event);
+
+		isTouchScrolling = true;
+
+		handleScroll();
+
+		isTouchScrolling = false;
+	}
+	/**
+	 * Wrapper for addEventListener since IE8 is a whiny baby and doesn't
+	 * support it.
+	 *
+	 * @param {string} listenTo Event to listen to
+	 * @param {function} eventFunction The funciton to add to the event
+	 * @return {void}
+	 */
+	function endTouchScroll() {
+		handleScroll();
 	}
 	/**
 	 * Wraps handleResize in requestAnimationFrame to optimize performace and
@@ -377,10 +537,11 @@ define(['dispatcher'], function(dispatcher) {
 	 * @return {void}
 	 */
 	function watchHtmlResize() {
-		if (requestAnimationFrameIsSupported)
+		if (requestAnimationFrameIsSupported) {
 			checkHtmlSizeOptimized();
-		else
+		} else {
 			setInterval(checkHtmlSize, 1);
+		}
 	}
 	/**
 	 * Wraps checkHtmlSize in requestAnimationFrame to optimize performace.
@@ -389,7 +550,7 @@ define(['dispatcher'], function(dispatcher) {
 	 */
 	function checkHtmlSizeOptimized() {
 		checkHtmlSize();
-		requestAnimationFrame(checkHtmlSizeOptimized);
+		window.requestAnimationFrame(checkHtmlSizeOptimized);
 	}
 	/**
 	 * Checks the html size and fires window resize if it has changed.
@@ -412,13 +573,13 @@ define(['dispatcher'], function(dispatcher) {
 	 * @return {void}
 	 */
 	function getScrollDistance(selector, selectorToOffset) {
-		var element = document.querySelector(selector);
+		var element = document.querySelector(selector),
 			elementOffset = getOffset(element).y,
 			elementToOffset = {},
 			elementToOffsetOffset = 0;
 
 		if (selectorToOffset) {
-			elementToOffset = document.querySelector(selectorToOffset),
+			elementToOffset = document.querySelector(selectorToOffset);
 			elementToOffsetOffset = getOffset(elementToOffset).y;
 		}
 
@@ -459,9 +620,9 @@ define(['dispatcher'], function(dispatcher) {
 		var timeStart = new Date().getTime();
 
 		if (requestAnimationFrameIsSupported) {
-			cancelAnimationFrame(animationFrameIdScrollTo);
+			window.cancelAnimationFrame(animationFrameIdScrollTo);
 
-			animationFrameIdScrollTo = requestAnimationFrame(function() {
+			animationFrameIdScrollTo = window.requestAnimationFrame(function() {
 				scrollToWithRequestAnimationFrame(scrollY, timeStart, duration);
 			});
 		} else {
@@ -483,18 +644,19 @@ define(['dispatcher'], function(dispatcher) {
 	 */
 	function scrollToWithRequestAnimationFrame(scrollY, timeStart, duration) {
 		var time = new Date().getTime(),
-			difference = scrollY - currentViewport.scrollTop,
 			scrollYNew = ((time - timeStart) / duration * scrollY) % scrollY;
 
-		if (time >= (timeStart + duration))
+		if (time >= (timeStart + duration)) {
 			scrollYNew = scrollY;
+		}
 
 		window.scrollTo(0, scrollYNew);
 
-		if (scrollYNew < scrollY)
-			animationFrameIdScrollTo = requestAnimationFrame(function() {
+		if (scrollYNew < scrollY) {
+			animationFrameIdScrollTo = window.requestAnimationFrame(function() {
 				scrollToWithRequestAnimationFrame(scrollY, timeStart, duration);
 			});
+		}
 	}
 	/**
 	 * Animates the window scrolling to a given position in a given time with
@@ -507,8 +669,9 @@ define(['dispatcher'], function(dispatcher) {
 	 * @return {void}
 	 */
 	function scrollToWithTimeout(scrollY, duration) {
-		if (duration < 0)
+		if (duration < 0) {
 			return;
+		}
 
 		var difference = scrollY - currentViewport.scrollTop,
 			differencePerInterval = difference / duration * 10,
@@ -518,9 +681,25 @@ define(['dispatcher'], function(dispatcher) {
 			window.scrollTo(0, scrollYNew);
 			handleScroll();
 
-			if (scrollYNew < scrollY)
+			if (scrollYNew < scrollY) {
 				scrollToWithTimeout(scrollY, duration - 10);
+			}
 		}, 10);
+	}
+	/**
+	 * Added a callback for a scroll event and adds it to touch events if asked.
+	 *
+	 * @param {string} event The enter or leave event.
+	 * @param {function} callback The callback to add to the queue.
+	 * @param {bool} shouldAddToTouch Should the event be added to touch scroll
+	 * @return {void}
+	 */
+	function addCallbackToEvent(event, callback, shouldAddToTouch) {
+		callbacks[event].push(callback);
+
+		if (shouldAddToTouch) {
+			callbacks.touch[event].push(callback);
+		}
 	}
 	/**
 	 * All modules should load themselves.
@@ -529,31 +708,37 @@ define(['dispatcher'], function(dispatcher) {
 
 	return {
 		/**
-		 * Adds a function to the callbacks.scroll queue.
+		 * Adds a function to the scroll queue for non touch or touch events.
+		 * Touch scroll events are not the most consistent or accurate.
 		 *
-		 * @param {function} function The callback function to add to the callbacks.scroll queue
+		 * @param {function} function The callback function to add to the scroll queue
+		 * @param {bool} shouldAddToTouch Should the event be added to touch scroll
 		 * @return {object} Current viewport
 		 */
-		scroll: function(callback) {
-			callbacks.scroll.push(callback);
+		scroll: function(callback, shouldAddToTouch) {
+			addCallbackToEvent('scroll', callback, shouldAddToTouch);
 		},
 		/**
-		 * Adds a function to the callbacks.scrollUp queue.
+		 * Adds a function to the scrollUp queue for non touch or touch events.
+		 * Touch scroll events are not the most consistent or accurate.
 		 *
-		 * @param {function} function The callback function to add to the callbacks.scrollUp queue
+		 * @param {function} function The callback function to add to the scrollUp queue
+		 * @param {bool} shouldAddToTouch Should the event be added to touch scroll
 		 * @return {object} Current viewport
 		 */
-		scrollUp: function(callback) {
-			callbacks.scrollUp.push(callback);
+		scrollUp: function(callback, shouldAddToTouch) {
+			addCallbackToEvent('scrollUp', callback, shouldAddToTouch);
 		},
 		/**
-		 * Adds a function to the callbacks.scrollDown queue.
+		 * Adds a function to the scrollDown queue for non touch or touch events.
+		 * Touch scroll events are not the most consistent or accurate.
 		 *
-		 * @param {function} function The callback function to add to the callbacks.scrollDown queue
+		 * @param {function} function The callback function to add to the scrollDown queue
+		 * @param {bool} shouldAddToTouch Should the event be added to touch scroll
 		 * @return {object} Current viewport
 		 */
-		scrollDown: function(callback) {
-			callbacks.scrollDown.push(callback);
+		scrollDown: function(callback, shouldAddToTouch) {
+			addCallbackToEvent('scrollDown', callback, shouldAddToTouch);
 		},
 		/**
 		 * Adds a function to the callbacks.resize queue.
@@ -603,7 +788,7 @@ define(['dispatcher'], function(dispatcher) {
 		resetScrollTop: function(namespace) {
 			var namespaceScrollTop = scrollTop[namespace];
 
-			if (typeof namespaceScrollTop !== "undefined") {
+			if (typeof namespaceScrollTop !== 'undefined') {
 				resetScrollTopEnd = namespaceScrollTop;
 				isScrolling = false;
 
