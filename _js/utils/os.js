@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * This is primarily used for detecting Android since it hates people. It could
  * be used to detect other OS.
@@ -6,7 +8,7 @@
  *
  * @return {object} Public methods.
  */
- define([], function() {
+ define(['jquery'], function($) {
 		/** @constant The version of Android supported. Set to be absurdly high till Android wants to play nice with touch events. */
 	var	ANDROID_VERSION_SUPPORTED = 999;
 
@@ -18,7 +20,29 @@
 	 *
 	 * @return {void}
 	 */
-	function load() {}
+	function load() {
+		var osClass = (isCompatible())
+				? 'no-android'
+				: 'android';
+
+		$('html').addClass(osClass);
+	}
+	/**
+	 * Checks to see if it's an android device since they are worthless.
+	 *
+	 * @return {bool} Is compatible OS
+	 */
+	function isCompatible() {
+		if (userAgent.indexOf('Android') > -1) {
+			var androidVersion = parseFloat(userAgent.slice(userAgent.indexOf('Android') + 8));
+
+			if (androidVersion <= ANDROID_VERSION_SUPPORTED) {
+				return false;
+			}
+		}
+
+		return true;
+	}
 	/**
 	 * All modules should load themselves.
 	 */
@@ -30,17 +54,7 @@
 		 *
 		 * @return {bool} Is compatible OS
 		 */
-		isCompatible: function() {
-			if (userAgent.indexOf("Android") > -1) {
-				var androidVersion = parseFloat(userAgent.slice(userAgent.indexOf("Android") + 8)); 
-				
-				if (androidVersion < ANDROID_VERSION_SUPPORTED) {
-					return false;
-				}
-			}
-			
-			return true;
-		},
+		isCompatible: isCompatible,
 		/**
 		 * Returns if the os supports touch
 		 *
