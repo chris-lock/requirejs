@@ -1,26 +1,8 @@
+'use strict';
+
 /**
- * Loads images based on the starting breakpoint for img's or div's
+ * Loads images based on the starting breakpoint for div's or img's
  *
- * 		<img
- * 			alt="Image Alt"
- * 			data-height="non-retina standard height"
- * 			data-src="The API basepoint accepting a url formatted [ImageApiEndpoint.jpg]?w=[width]&h=[height]"
- * 			data-width="non-retina standard width"
- * 			data-width_medium="non-retina medium width"
- * 			data-width_small="non-retina small width"
- * 			src="holder image or low quality image"
- * 		/>
- *
- * 		<img
- *			alt="Picture of Michelle A. Book"
- *			data-height="93"
- *			data-src="[ImageApiEndpoint.jpg]"
- *			data-width="93"
- *			data-width_medium="93"
- *			data-width_small="50"
- *			src="[ImageApiEndpoint.jpg]?w=50&amp;h=50"
- *		/>
- * 		
  * 		<div
  * 			data-src="The API basepoint accepting a url formatted [ImageApiEndpoint.jpg]?w=[width]&h=[height]"
  *			data-src_standard="The standard background image API basepoint with URL parameters to size it in half"
@@ -41,13 +23,35 @@
  *			data-src_small_retina="[BackgroundSmallImageApiEndpoint.jpg]"
  *		></div>
  *
+ * Img's can be loaded using the above method or
+ *
+ * 		<img
+ * 			alt="Image Alt"
+ * 			data-height="non-retina standard height"
+ * 			data-src="The API basepoint accepting a url formatted [ImageApiEndpoint.jpg]?w=[width]&h=[height]"
+ * 			data-width="non-retina standard width"
+ * 			data-width_medium="non-retina medium width"
+ * 			data-width_small="non-retina small width"
+ * 			src="holder image or low quality image"
+ * 		/>
+ *
+ * 		<img
+ *			alt="Picture of Michelle A. Book"
+ *			data-height="93"
+ *			data-src="[ImageApiEndpoint.jpg]"
+ *			data-width="93"
+ *			data-width_medium="93"
+ *			data-width_small="50"
+ *			src="[ImageApiEndpoint.jpg]?w=50&amp;h=50"
+ *		/>
+ *
  * @author Chris Lock
  *
  * @param {object} jquery jQuery library.
  * @param {object} breakpoints Breakpoints utility.
  * @return {object} Public methods.
  */
-define(['jquery', 'breakpoints'], function($, breakpoints) {
+define(['jquery', 'breakpoints', 'loader'], function($, breakpoints, loader) {
 		/** @constant The data tag for image loading. */
 	var	DATA_SRC = 'data-src',
 		/** @constant The defult image width data attr. */
@@ -80,8 +84,21 @@ define(['jquery', 'breakpoints'], function($, breakpoints) {
 			'small': true
 		},
 		/** @type {string} The current breakpoint. */
+		breakpointCurrent = '';
+
+	/**
+	 * Registers the util method with the loader and loads the images for all
+	 * elements.
+	 *
+	 * @return {void}
+	 */
+	function load() {
 		breakpointCurrent = getBreakpointCurrent();
 
+		loader.registerUtilMethod(loadImages);
+		loadImages();
+		breakpoints.change(updateImages);
+	}
 	/**
 	 * Get the current breakpoint.
 	 *
@@ -97,46 +114,46 @@ define(['jquery', 'breakpoints'], function($, breakpoints) {
 		return '';
 	}
 	/**
-	 * Loads the images for all elements.
-	 *
-	 * @return {void}
-	 */
-	function load() {
-		loadImages();
-		breakpoints.change(updateImages);
-	}
-	/**
 	 * Loads only elements that haven't been loaded before.
 	 *
+	 * @param {object} $element The element to look inside for images that need loading
 	 * @return {void}
 	 */
-	function loadImages() {
-		getImages().not(LOADED_SELECTOR).each(loadImg);
-		getBgImages().not(LOADED_SELECTOR).each(loadBgImage);
+	function loadImages($element) {
+		getImages($element).not(LOADED_SELECTOR).each(loadImg);
+		getBgImages($element).not(LOADED_SELECTOR).each(loadBgImage);
 	}
 	/**
 	 * Gets all the images from the current DOM.
 	 *
+	 * @param {object} $element The element to look inside for images that need loading
 	 * @return {object} Images in the page.
 	 */
-	function getImages() {
-		return getElements().filter('img');
+	function getImages($element) {
+		return getElements($element).filter('img');
 	}
 	/**
-	 * Gets all the elements with the data tag from the current DOM.
+	 * Gets all the elements with the data tag from the current DOM. Addback
+	 * includes the parent in case it has a data-src attribute as well.
 	 *
+	 * @param {object} $element The element to look inside for images that need loading
 	 * @return {object} Elements in the page.
 	 */
-	function getElements() {
-		return $('[' + DATA_SRC + ']');
+	function getElements($element) {
+		var $parent = $element || $(document);
+
+		var dataSrcSelector = '[' + DATA_SRC + ']';
+
+		return $parent.find(dataSrcSelector).addBack(dataSrcSelector);
 	}
 	/**
 	 * Gets all the background image elements from the current DOM.
 	 *
+	 * @param {object} $element The element to look inside for background images that need loading
 	 * @return {object} Background image elements in the page.
 	 */
-	function getBgImages() {
-		return getElements().not('img');
+	function getBgImages($element) {
+		return getElements($element).not('img');
 	}
 	/**
 	 * Updates all elements.
@@ -145,7 +162,7 @@ define(['jquery', 'breakpoints'], function($, breakpoints) {
 	 */
 	function updateImages() {
 		breakpointCurrent = getBreakpointCurrent();
-		
+
 		getImages().each(loadImg);
 		getBgImages().each(loadBgImage);
 	}
@@ -167,19 +184,29 @@ define(['jquery', 'breakpoints'], function($, breakpoints) {
 			queryStartingChar = getImgUrlQueryStartingChar(src),
 			url = getImgUrl(src, queryStartingChar, imgObj.width, imgObj.height);
 
+		$this.attr('src', url);
+		updateClasses($this);
+	}
+	/**
+	 * Updates the loaded class that can be used for animations.
+	 *
+	 * @param {object} $this jQuery object containg the element
+	 * @return {void}
+	 */
+	function updateClasses($this) {
 		$this
-			.attr('src', url)
+			.removeClass(LOADED_CLASS)
 			.addClass(LOADED_CLASS);
 	}
 	/**
-	 * Gets the url for the image from the src data atribute of the breakpoint 
+	 * Gets the url for the image from the src data atribute of the breakpoint
 	 * src data attribute.
 	 *
 	 * @param {object} $this jQuery object containg the element
 	 * @return {string} The image url
 	 */
 	function getImageUrl($this) {
-		var defaultImageUrl = $this.attr(DATA_SRC);
+		var defaultImageUrl = $this.attr(DATA_SRC),
 			breakpointImageUrlDataAttr = DATA_SRC_BASE + getBreakpointCurrent();
 
 		if (breakpoints.is('retina')) {
@@ -214,7 +241,7 @@ define(['jquery', 'breakpoints'], function($, breakpoints) {
 		return imgObj;
 	}
 	/**
-	 * Sets the image default and breakpoint specific width. The final width 
+	 * Sets the image default and breakpoint specific width. The final width
 	 * will be the breakpoint specific width if present, then the default width,
 	 * then 0.
 	 *
@@ -229,8 +256,8 @@ define(['jquery', 'breakpoints'], function($, breakpoints) {
 			width = widthBreakpoint || widthDefault || 0,
 			resolution = (breakpoints.is('retina')) ? 2 : 1;
 
-		imgObj.widthBreakpoint = widthBreakpoint,
-		imgObj.widthDefault = widthDefault,
+		imgObj.widthBreakpoint = widthBreakpoint;
+		imgObj.widthDefault = widthDefault;
 		imgObj.width = parseInt(width) * resolution;
 
 		return imgObj;
@@ -247,13 +274,13 @@ define(['jquery', 'breakpoints'], function($, breakpoints) {
 			heightBreakpoint = $this.attr(heightBreakpointAttr),
 			heightDefault = $this.attr(DATA_HEIGHT);
 
-		imgObj.heightBreakpoint = heightBreakpoint,
+		imgObj.heightBreakpoint = heightBreakpoint;
 		imgObj.heightDefault = heightDefault;
 
 		return imgObj;
 	}
 	/**
-	 * Sets the image ratio first checking to see if one is specified for the 
+	 * Sets the image ratio first checking to see if one is specified for the
 	 * breakpoint, then checking for the default.
 	 *
 	 * @param {object} The image object
@@ -275,7 +302,7 @@ define(['jquery', 'breakpoints'], function($, breakpoints) {
 	 * @return {object} The image object with width parameters
 	 */
 	function setImgHeight(imgObj) {
-		var imgWidth = imgObj.widthBreakpoint || imgObj.widthDefault;
+		var imgWidth = imgObj.widthBreakpoint || imgObj.width;
 
 		if (imgObj.ratio && imgWidth) {
 			imgObj.height = Math.round(imgWidth / imgObj.ratio);
@@ -324,7 +351,7 @@ define(['jquery', 'breakpoints'], function($, breakpoints) {
 	 */
 	function getUrlQueryString(queryStartingChar, width, height) {
 		var queryParameters = [],
-			query = "";
+			query = '';
 
 		if (width) {
 			var urlWidthParameter = URL_WIDTH_BASE.replace('[width]', width);
@@ -339,7 +366,7 @@ define(['jquery', 'breakpoints'], function($, breakpoints) {
 		}
 
 		if (queryParameters.length) {
-			query = queryStartingChar + queryParameters.join("&");
+			query = queryStartingChar + queryParameters.join('&');
 		}
 
 		return query;
@@ -352,30 +379,11 @@ define(['jquery', 'breakpoints'], function($, breakpoints) {
 	function loadBgImage() {
 		var $this = $(this);
 
-		$this
-			.css('background-image', 'url(' + getImageUrl($this) + ')')
-			.addClass(LOADED_CLASS);
+		$this.css('background-image', 'url(' + getImageUrl($this) + ')');
+		updateClasses($this);
 	}
 	/**
-	 * Loads the bg images for all elements. starting with the default, then 
-	 * attempting the breakpoint image, then the retina breakpoint image.
-	 *
-	 * @param {object} $this Element needing backgound image
-	 * @return {string} Image url.
-	 */
-	function getBgImageUrl($this) {
-		var defaultImageUrl = $this.attr(DATA_SRC);
-			breakpointImageUrlDataAttr = DATA_SRC_BASE + getBreakpointCurrent();
-
-		if (breakpoints.is('retina')) {
-			defaultImageUrl = $this.attr(breakpointImageUrlDataAttr) || defaultImageUrl;
-			breakpointImageUrlDataAttr += DATA_SRC_RETINA_BASE;
-		}
-
-		return $this.attr(breakpointImageUrlDataAttr) || defaultImageUrl;
-	}
-	/**
-	 * All modules should load themselves.
+	 * All utils should load themselves.
 	 */
 	load();
 
