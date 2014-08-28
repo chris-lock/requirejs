@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * The breakpoints utility gets breakpoints from div.breakpoints in the DOM
  * that have a data-breakpoint attribute. CSS should set all breakpoints to
@@ -36,7 +38,7 @@ define(['dispatcher', 'viewport'], function(dispatcher, viewport) {
 	 */
 	function load() {
 		breakpoints = getBreakpoints();
-		
+
 		viewport.resize(fireBreakpointCallbacks);
 	}
 	/**
@@ -76,7 +78,7 @@ define(['dispatcher', 'viewport'], function(dispatcher, viewport) {
 		var breakpointsChanged = getBreakpointsChanged();
 
 		if (breakpointsChanged.entered.length || breakpointsChanged.left.length) {
-			breakpoints = breakpointsNew;
+			breakpoints = getBreakpoints();
 
 			dispatcher.fireCallbacks(callbacks.change);
 		}
@@ -99,10 +101,11 @@ define(['dispatcher', 'viewport'], function(dispatcher, viewport) {
 
 		for (var breakpoint in breakpointsNew) {
 			if (breakpoints[breakpoint] !== breakpointsNew[breakpoint]) {
-				if (breakpointsNew[breakpoint])
+				if (breakpointsNew[breakpoint]) {
 					breakpointsChanged.entered.push(breakpoint);
-				else
+				} else {
 					breakpointsChanged.left.push(breakpoint);
+				}
 			}
 		}
 
@@ -124,7 +127,7 @@ define(['dispatcher', 'viewport'], function(dispatcher, viewport) {
 
 			if (callbacks[event][breakpointCurrent]) {
 				breakpointCallbacks = callbacks[event][breakpointCurrent];
-				
+
 				dispatcher.fireCallbacks(breakpointCallbacks, breakpointCurrent);
 			}
 		}
@@ -138,13 +141,14 @@ define(['dispatcher', 'viewport'], function(dispatcher, viewport) {
 	 * @return {void}
 	 */
 	function addCallbackToEvent(event, breakpoint, callback) {
-		if (!callbacks[event][breakpoint])
+		if (!callbacks[event][breakpoint]) {
 			callbacks[event][breakpoint] = [];
-		
+		}
+
 		callbacks[event][breakpoint].push(callback);
 	}
 	/**
-	 * All modules should load themselves.
+	 * All utils should load themselves.
 	 */
 	load();
 
