@@ -56,7 +56,7 @@ define(['dispatcher'], function(dispatcher) {
 		/** @type {int} The previous viewport width used to detect resize events. */
 		viewportWidthPrevious = 0,
 		/** @type {int} The timer used to detect scroll stop. */
-		scrollTimer = setTimeout(function() {}),
+		scrollTimer = null,
 		/** @type {int} The number of milliseconds of inactivity considered a scroll stop. */
 		scrollTimerLatency = 300,
 		/** @type {object} Callback queue for each event. */
@@ -785,7 +785,7 @@ define(['dispatcher'], function(dispatcher) {
 		}, 10);
 	}
 	/**
-	 * All modules should load themselves.
+	 * All utils should load themselves.
 	 */
 	load();
 
