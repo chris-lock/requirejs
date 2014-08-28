@@ -51,6 +51,10 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		PAGINATION_LINK_CLASS = PAGINATION_CLASS + '-link',
 		/** @constant Carousel pagination link index class. */
 		PAGINATION_LINK_INDEX_CLASS = PAGINATION_LINK_CLASS + '-index',
+		/** @constant Carousel pagination active class. */
+		PAGINATION_ACTIVE_CLASS = '_active',
+		/** @constant Carousel pagination active selector. */
+		PAGINATION_ACTIVE_SELECTOR = '.' + PAGINATION_ACTIVE_CLASS,
 		/** @constant Carousel draggable class for carousels with enough slides. */
 		DRAGGABLE_CLASS = '_draggable',
 		/** @constant Carousel dragging class. */
@@ -108,6 +112,8 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 			'medium': true,
 			'small': true
 		},
+		/** @type {bool} Device is compatiable i.e. not Android. */
+		isCompatible = os.isCompatible(),
 		/** @type {bool} Device supports touch. */
 		isTouch = os.supportsTouch(),
 		/** @type {bool} Has the minimum drag been reached for mobile scroll lock. */
@@ -126,6 +132,16 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		slideIndexCurrent = 0,
 		/** @type {int} The max index the carousel can slide to. */
 		slideIndexMax = 0,
+		/** @type {int} The minimum drag ratio based on the number of slides shown and current position. */
+		dragRatioRangeStart = 0,
+		/** @type {int} Where we stop moving the carousel when it's reached the drag ratio start range. */
+		dragRatioRangeStartMax = 0,
+		/** @type {int} The maximum drag ratio based on the number of slides shown and current position. */
+		dragRatioRangeEnd = 0,
+		/** @type {int} Where we stop moving the carousel when it's reached the drag ratio end range. */
+		dragRatioRangeEndMax = 0,
+		/** @type {object} The start event. */
+		eventStart = {},
 		/** @type {int} Starting drag position. */
 		dragStart = 0,
 		/** @type {int} The drag length as a percent of the carousel width. */
@@ -226,28 +242,71 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 	 * @return {void}
 	 */
 	function updateEvents($carousel, updateType) {
-		var startEvent = (isTouch) ? 'touchstart' : 'mousedown',
-			moveEvent = (isTouch) ? 'touchmove' : 'mousemove',
-			endEvent = (isTouch) ? 'touchend' : 'mouseup';
+		var startEvent = getEventType('start'),
+			clickEvent = 'click' + JQUERY_NAMESPACE,
+			keyupEvent = 'keyup' + JQUERY_NAMESPACE;
 
-		$carousel[updateType](startEvent + JQUERY_NAMESPACE, onStartEvent);
-		$carousel[updateType](moveEvent + JQUERY_NAMESPACE, onMoveEvent);
-		$carousel[updateType](endEvent + JQUERY_NAMESPACE, onEndEvent);
-		$carousel[updateType]('touchcancel' + JQUERY_NAMESPACE, onEndEvent);
-		$carousel[updateType]('mouseleave' + JQUERY_NAMESPACE, onEndEvent);
+		$carousel[updateType](startEvent, onStartEvent);
+		$carousel[updateType](getEventType('move'), onMoveEvent);
+		$carousel[updateType](getEventType('end'), onEndEvent);
 
 		$carousel.find(NAV_SELECTOR).find('a')
-			[updateType]('click' + JQUERY_NAMESPACE, onNavClick)
-			[updateType]('keyup' + JQUERY_NAMESPACE, onNavKeyup)
+			[updateType](clickEvent, onNavClick)
+			[updateType](startEvent, preventStartEvent)
+			[updateType](keyupEvent, onNavKeyup)
 			[updateType]('mouseenter' + JQUERY_NAMESPACE, fixIe8Background)
 			[updateType]('mouseleave' + JQUERY_NAMESPACE, fixIe8Background);
 		$carousel.find(PAGINATION_SELECTOR).find('a')
-			[updateType]('click' + JQUERY_NAMESPACE, onPaginationClick)
-			[updateType]('keyup' + JQUERY_NAMESPACE, onNavKeyup);
+			[updateType](clickEvent, onPaginationClick)
+			[updateType](startEvent, preventStartEvent)
+			[updateType](keyupEvent, onNavKeyup);
 
 		getBreakpointSlides($carousel).find('a')
-			[updateType](startEvent + JQUERY_NAMESPACE, updateForDragClick)
-			[updateType]('click' + JQUERY_NAMESPACE, preventDragClick);
+			[updateType](startEvent, updateForDragClick)
+			[updateType](clickEvent, preventDragClick);
+	}
+	/**
+	 * Gets either the touch or mouse event depending on the os. Adds the jQuery
+	 * namespace to every item in the array. Only accepts start, move, and end.
+	 *
+	 * @return {string} The event name
+	 */
+	function getEventType(eventType) {
+		return getEventsSet()[eventType].join(JQUERY_NAMESPACE + ' ') + JQUERY_NAMESPACE;
+	}
+	/**
+	 * Gets the set of possible event for touch or mouse.
+	 *
+	 * @return {object} The event set
+	 */
+	function getEventsSet() {
+		return (isTouch)
+			? getEventsTouch()
+			: getEventsMouse();
+	}
+	/**
+	 * Gets the set of possible touch events.
+	 *
+	 * @return {object} The touch event set
+	 */
+	function getEventsTouch() {
+		return {
+			start: ['touchstart'],
+			move: ['touchmove'],
+			end: ['touchend', 'touchcancel']
+		};
+	}
+	/**
+	 * Gets the set of possible touch mouse.
+	 *
+	 * @return {object} The mouse event set
+	 */
+	function getEventsMouse() {
+		return {
+			start: ['mousedown'],
+			move: ['mousemove'],
+			end: ['mouseup', 'mouseleave']
+		};
 	}
 	/**
 	 * Sets the width of the carousel inner and slides and positions
@@ -413,14 +472,16 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		getCarouselInner($carousel).outerWidth(carouselInnerWidth);
 	}
 	/**
-	 * Gets the first child carousel inner for a carousel since their could
-	 * be another carousel inner being used for a carousel at anoter breakpoint.
+	 * Gets the current breakpoint's carousel inner in case there is more than
+	 * one because the slides are not the same for every breakpoint
 	 *
 	 * @param {object} $carousel jQuery object for a carousel
 	 * @return {object} The carousel inner
 	 */
 	function getCarouselInner($carousel) {
-		return $carousel.find(CAROUSEL_INNER_SELECTOR).first();
+		var $firstSlide = getBreakpointSlides($carousel).first();
+
+		return $firstSlide.parent(CAROUSEL_INNER_SELECTOR);
 	}
 	/**
 	 * Sets global vars used in all carousel move events.
@@ -439,6 +500,10 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		carouselInnerLeftStartPercent = getCarouselInnerLeftStartPrecent($carousel, $carouselInner);
 		slideIndexCurrent = getSlideIndexCurrent(carouselInnerLeftStartPercent);
 		slideIndexMax = getSlideIndexMax($carousel, slidesShown);
+		dragRatioRangeStart = getDragRatioRangeStart(carouselInnerLeftStartPercent);
+		dragRatioRangeStartMax = dragRatioRangeStart + (snapInterval / 2);
+		dragRatioRangeEnd = getDragRatioRangeEnd(snapInterval, slideIndexMax, carouselInnerLeftStartPercent);
+		dragRatioRangeEndMax = dragRatioRangeEnd - (snapInterval / 2);
 	}
 	/**
 	 * Gets the carousel inner width as a percent of the carousel width.
@@ -527,7 +592,27 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 			: slideIndexMax;
 	}
 	/**
-	 * Moves the carsouel to a given slide index.
+	 * Gets the minimum drag ratio based on the number of slides shown.
+	 *
+	 * @param {int} carouselInnerLeftStartPercent The left position of the carousel inner
+	 * @return {void}
+	 */
+	function getDragRatioRangeStart(carouselInnerLeftStartPercent) {
+		return -1 * (carouselInnerLeftStartPercent / 100);
+	}
+	/**
+	 * Gets the maximum drag ratio based on the number of slides shown.
+	 *
+	 * @param {int} snapInterval The interval the carousel snaps to as a ratio
+	 * @param {int} slideIndexMax The max index the carousel can slide to
+	 * @param {int} carouselInnerLeftStartPercent The left position of the carousel inner
+	 * @return {void}
+	 */
+	function getDragRatioRangeEnd(snapInterval, slideIndexMax, carouselInnerLeftStartPercent) {
+		return -1 * snapInterval * slideIndexMax - (carouselInnerLeftStartPercent / 100);
+	}
+	/**
+	 * Moves the carousel to a given slide index.
 	 *
 	 * @param {object} $carousel jQuery object for a carousel
 	 * @param {int} slideIndex The index of the slide to slide to
@@ -626,12 +711,12 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		var $carouselPaginationLinks = $carousel.find('.' + PAGINATION_LINK_CLASS);
 
 		$carouselPaginationLinks
-			.filter(SLIDE_ACTIVE_SELECTOR)
-				.removeClass(SLIDE_ACTIVE_CLASS);
+			.filter(PAGINATION_ACTIVE_SELECTOR)
+				.removeClass(PAGINATION_ACTIVE_CLASS);
 
 		$carouselPaginationLinks
 			.eq(slideIndex)
-				.addClass(SLIDE_ACTIVE_CLASS);
+				.addClass(PAGINATION_ACTIVE_CLASS);
 	}
 	/**
 	 * Fires on touchstart or mousedown to update drag start position if it's
@@ -653,7 +738,8 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 
 			setCarouselMoveGlobalVars($carousel);
 
-			dragStart = getEvent(event).pageX;
+			eventStart = getEvent(event);
+			dragStart = eventStart.pageX;
 			dragPercent = 0;
 			dragSpeed = 0;
 			dragTime = (new Date()).getTime();
@@ -670,8 +756,17 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 	 */
 	function isValidEvent(event) {
 		return (isTouch)
-			? (event.originalEvent.touches && event.originalEvent.touches.length == 1)
+			? isSingleTouch(event)
 			: true;
+	}
+	/**
+	 * Determines if the event was a single touch.
+	 *
+	 * @param {object} event The touch or mouse event
+	 * @return {bool} Was it a single touch
+	 */
+	function isSingleTouch(event) {
+		return (event.originalEvent.touches && event.originalEvent.touches.length == 1);
 	}
 	/**
 	 * Returns the mouse event or event.touches for touchstart and
@@ -681,11 +776,11 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 	 * @return {object} Mouse or touch event object.
 	 */
 	function getEvent(event) {
-		if (isTouch) {
-			return event.originalEvent.touches[0] || event.originalEvent.changedTouches[0];
-		} else {
+		if (!isTouch) {
 			return event;
 		}
+
+		return event.originalEvent.touches[0] || event.originalEvent.changedTouches[0];
 	}
 	/**
 	 * Prevents default mouse events since they will try to move imgs and
@@ -726,12 +821,25 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 	 * @return {void}
 	 */
 	function onMoveEvent(event) {
+		fixMoveEvent();
+
 		if (isDragging) {
 			dragCarousel($(this), dragStart, getEvent(event).pageX);
 
-			if (os.isCompatible()) {
+			if (isCompatible) {
 				preventDefaultEvents(event);
 			}
+		}
+	}
+	/**
+	 * For some reason, adding something to the html makes Android swip events
+	 * move consistent.
+	 *
+	 * @return {void}
+	 */
+	function fixMoveEvent() {
+		if (!isCompatible) {
+			$('html').append(' ');
 		}
 	}
 	/**
@@ -748,7 +856,7 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 
 		var carouselInnerLeftCurrent = carouselInnerLeftStartPercent + dragPercent + '%';
 
-		if (os.isCompatible()) {
+		if (isCompatible) {
 			getCarouselInner($carousel).css('left', carouselInnerLeftCurrent);
 			getBreakpointSlides($carousel).find('a')
 				.addClass(DISABLED_CLASS);
@@ -766,7 +874,7 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		dragSpeed = 130 / (dragTimeNew - dragTime);
 		dragTime = dragTimeNew;
 
-		if (!os.isCompatible()) {
+		if (!isCompatible) {
 			dragSpeed = 0;
 		}
 	}
@@ -805,7 +913,7 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		);
 	}
 	/**
-	 * Gets the direction of teh drag.
+	 * Gets the direction of the drag.
 	 *
 	 * @return {int} Drag direction
 	 */
@@ -822,34 +930,9 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 	 */
 	function getDragRatioAdjusted(dragRatioRelativeToSnap, dragDirection, snapIntervalBase) {
 		var dragRatioForInterval = dragRatioRelativeToSnap / snapInterval,
-			dragRatioRelativeToSnapAdjusted = dragRatioRelativeToSnap * getDragRatioSnapScalar(dragRatioForInterval),
-			slideIndexBase = getSlideIndexIncrement(snapIntervalBase / snapInterval);
+			dragRatioRelativeToSnapAdjusted = dragRatioRelativeToSnap * getDragRatioSnapScalar(dragRatioForInterval);
 
-		var isCarouselStart = (slideIndexCurrent - slideIndexBase <= 0),
-			draggingBackwards = (dragDirection > 0);
-
-		var isCarouselEnd = (slideIndexCurrent + snapIntervalBase >= slideIndexMax),
-			draggingForwards = (dragDirection < 0);
-
-		if (isCarouselStart && draggingBackwards) {
-			dragRatioRelativeToSnapAdjusted = dragRatioRelativeToSnapAdjustedForBounds(
-				dragRatioForInterval,
-				dragRatioRelativeToSnap,
-				snapInterval,
-				snapIntervalBase
-			);
-			snapIntervalBase = slideIndexCurrent * snapInterval;
-		} else if (isCarouselEnd && draggingForwards) {
-			dragRatioRelativeToSnapAdjusted = dragRatioRelativeToSnapAdjustedForBounds(
-				dragRatioForInterval,
-				dragRatioRelativeToSnap,
-				snapInterval,
-				snapIntervalBase
-			);
-			snapIntervalBase = (slideIndexMax - slideIndexCurrent) * snapInterval;
-		}
-
-		return dragDirection * (dragRatioRelativeToSnapAdjusted + snapIntervalBase);
+		return getDragRatioInBounds(dragDirection * (dragRatioRelativeToSnapAdjusted + snapIntervalBase));
 	}
 	/**
 	 * Gets the scalar used to adjust the drag ratio for snaps.
@@ -916,26 +999,51 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 	 * Adjusts the drag ratio so that it's half as efficient outsides the bounds
 	 * and sets a max for when the snapIntervalBase increases.
 	 *
-	 * @param {int} dragRatioForInterval The drag ratio as a ratio of the snap interval
-	 * @param {int} dragRatioRelativeToSnap The drag ratio relative to the interval
-	 * @param {int} snapInterval The interval in which we are dragging
-	 * @param {int} snapIntervalBase If we've already passed a snap point, use that as the base
-	 * @return {int} The snap ratio adjusted for bounds.
+	 * @param {int} dragRatioTotal The drag ratio relative to the start of the carousel
+	 * @return {int} The drag ratio adjusted for bounds.
 	 */
-	function dragRatioRelativeToSnapAdjustedForBounds(dragRatioForInterval, dragRatioRelativeToSnap, snapInterval, snapIntervalBase) {
-		var dragRatioBoundsScalar = -0.5 * dragRatioForInterval + 1,
-			dragRatioTotal = dragRatioRelativeToSnap + snapIntervalBase,
-			dragRatioTotalAdjusted = dragRatioBoundsScalar * dragRatioTotal;
+	function getDragRatioInBounds(dragRatioTotal) {
+		if (dragRatioTotal > dragRatioRangeStart) {
+			return getDragRatioAdjustedForBounds(
+				dragRatioTotal,
+				dragRatioRangeStart,
+				'min',
+				dragRatioRangeStartMax
+			);
+		} else if (dragRatioTotal < dragRatioRangeEnd) {
+			return getDragRatioAdjustedForBounds(
+				dragRatioTotal,
+				dragRatioRangeEnd,
+				'max',
+				dragRatioRangeEndMax
+			);
+		}
 
-		return Math.min(dragRatioTotalAdjusted, snapInterval / 2);
+		return dragRatioTotal;
+	}
+	/**
+	 * Gets the drag ratio adjusted to half efficiency for being outside the
+	 * bounds.
+	 *
+	 * @param {int} dragRatioTotal The drag ratio relative to the start of the carousel
+	 * @param {int} dragRatioRange The drag ratio range end point
+	 * @param {string} mathMethod The math method used for the range
+	 * @param {int} dragRatioRangeMax The drag ratio range end point max
+	 * @return {int} The drag ratio adjusted for bounds.
+	 */
+	function getDragRatioAdjustedForBounds(dragRatioTotal, dragRatioRange, mathMethod, dragRatioRangeMax) {
+		var dragRatioTotalAdjusted = ((dragRatioTotal - dragRatioRange) / 2) + dragRatioRange;
+
+		return Math[mathMethod](dragRatioTotalAdjusted, dragRatioRangeMax);
 	}
 	/**
 	 * Checks to see if the drag was long enough and passes the drag percent to
 	 * moveCarousel to update the carousel.
 	 *
+	 * @param {object} event The touch or mouse event
 	 * @return {void}
 	 */
-	function onEndEvent() {
+	function onEndEvent(event) {
 		var $carousel = $(this);
 
 		var wasDragging = isDragging;
@@ -948,9 +1056,26 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 
 		setDragSpeed();
 
-		if (wasDragging) {
+		if (wasDragging && isValidDrag(getEvent(event))) {
 			updateCarousel($carousel);
 		}
+	}
+	/**
+	 * Checks to see if the drag was vertical since Android can't tell between
+	 * scrolling and swiping.
+	 *
+	 * @param {object} event Mouseup or touchend event object
+	 * @return {bool} The drag was valid
+	 */
+	function isValidDrag(eventEnd) {
+		if (isCompatible) {
+			return true;
+		}
+
+		var dragX = eventStart.pageX - eventEnd.pageX,
+			dragY = eventStart.pageY - eventEnd.pageY;
+
+		return ((Math.abs(dragY) * 2) < Math.abs(dragX));
 	}
 	/**
 	 * Updates the carousel on end event.
@@ -965,7 +1090,7 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 			dragPercentWithSpeed = getDragDirection(dragPercent) * dragPercentAbsoluteWidthSpeed,
 			slideIndexNew = slideIndexCurrent;
 
-		if ((dragStartIsLongEnough || !os.isCompatible()) && dragEndIsLongEnough(dragPercentWithSpeed)) {
+		if ((dragStartIsLongEnough || !isCompatible) && dragEndIsLongEnough(dragPercentWithSpeed)) {
 			slideIndexNew = getSlideIndexNew(dragPercentWithSpeed);
 		}
 
@@ -979,7 +1104,7 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 	 * @return {int} Drag percent for the os
 	 */
 	function setDragPercentForOs() {
-		return (os.isCompatible())
+		return (isCompatible)
 			? dragPercent
 			: getDragDirection(dragPercent) * snapIntervalPercent;
 	}
@@ -1082,6 +1207,18 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 	function preventDefault(event) {
 		if (event && event.preventDefault) {
 			event.preventDefault();
+		}
+	}
+	/**
+	 * Prevents touch start from bubbling on on Android since this can cause
+	 * duplicate events when clicking controls.
+	 *
+	 * @param {object} event Touch event
+	 * @return {void}
+	 */
+	function preventStartEvent(event) {
+		if (!isCompatible && event.stopPropagation) {
+			event.stopPropagation();
 		}
 	}
 	/**
