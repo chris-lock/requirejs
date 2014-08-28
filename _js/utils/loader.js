@@ -17,14 +17,14 @@ define(['jquery', 'dispatcher'], function($, dispatcher) {
 	var DATA_MODULE = 'data-module',
 		/** @type {constant} The selector for load links. */
 		LOADER_LINK_SELECTOR = '.loader-link',
-		/** @type {constant} The data attribute the container id to load ajax into. */
+		/** @type {constant} The data attribute of the container class to load ajax into. */
 		DATA_LOAD_CONTAINER = 'data-load_container',
 		/** @type {constant} The class added when ajax is loading. */
 		LOADING_CLASS = '_loading',
 		/** @type {constant} The class added when ajax is loaded. */
 		LOADED_CLASS = '_loaded',
 		/** @type {constant} The class added when ajax has an error. */
-		ERROR_CLASS = '_loading';
+		ERROR_CLASS = '_error';
 
 		/** @type {bool} $(document).ready has fired. */
 	var documentReadyHasBeenTrigger = false,
@@ -43,7 +43,7 @@ define(['jquery', 'dispatcher'], function($, dispatcher) {
 	function load() {
 		$(document).ready(documentReady);
 		document.onreadystatechange = documentComplete;
-		$(LOADER_LINK_SELECTOR).on('click', handleLoaderLinkClick);
+		$('body').on('click', LOADER_LINK_SELECTOR, handleLoaderLinkClick);
 	}
 	/**
 	 * Gets all unique requested modules and fires their public load method.
@@ -184,16 +184,16 @@ define(['jquery', 'dispatcher'], function($, dispatcher) {
 		loadUrl($link.attr('href'), $link.attr(DATA_LOAD_CONTAINER), $link);
 	}
 	/**
-	 * Loads ajax request from a url replacing a container with the id provided and
-	 * updates a link with loading, error, and loaded classes.
+	 * Loads ajax request from a url replacing a container with the class
+	 * provided and updates a link with loading, error, and loaded classes.
 	 *
 	 * @param {string} url The url of the ajax request
-	 * @param {string} containerId The container id to load the request into
+	 * @param {string} containerClass The container class to load the request into
 	 * @param {object} $link The link making the request
 	 * @return {void}
 	 */
-	function loadUrl(url, containerId, $link) {
-		var $container = $('#' + containerId);
+	function loadUrl(url, containerClass, $link) {
+		var $container = $('.' + containerClass);
 
 		var repsonseClasses = LOADED_CLASS + ' ' + ERROR_CLASS;
 
@@ -203,7 +203,7 @@ define(['jquery', 'dispatcher'], function($, dispatcher) {
 		$.ajax({
 			url: url
 		}).done(function(response) {
-			loadRepsonseInContainer($container, response, $link);
+			loadRepsonseInContainer($container, $(response), $link);
 		}).fail(function() {
 			showLoadError($container, $link);
 		});
@@ -233,14 +233,12 @@ define(['jquery', 'dispatcher'], function($, dispatcher) {
 	 * the loaded class.
 	 *
 	 * @param {object} $container The container to load the request into
-	 * @param {string} response The ajax repsonse
+	 * @param {object} $response The ajax repsonse as a jQuery object
 	 * @param {object} $link The link making the request
 	 * @return {void}
 	 */
-	function loadRepsonseInContainer($container, response, $link) {
+	function loadRepsonseInContainer($container, $response, $link) {
 		if ($container.length) {
-			var $response = $(response);
-
 			$container.replaceWith($response);
 
 			updateElementClass($response, LOADED_CLASS);
