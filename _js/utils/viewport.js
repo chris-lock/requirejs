@@ -303,7 +303,11 @@ define(['dispatcher'], function(dispatcher) {
 		viewportCurrent.width = getWindowWidth();
 		viewportCurrent.height = getWindowHeight();
 		viewportCurrent.scrollBottomMax = getDocumentHeight();
-		viewportCurrent.scrollTopMax = viewportCurrent.scrollBottomMax - viewportCurrent.height;
+		viewportCurrent.scrollTopMax = Math.max(
+			viewportCurrent.scrollBottomMax - viewportCurrent.height,
+			0
+		);
+
 		viewportCurrent.scrollTop = Math.min(
 			viewportCurrent.scrollTopMax,
 			Math.max(
