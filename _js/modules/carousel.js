@@ -112,6 +112,8 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 			'medium': true,
 			'small': true
 		},
+		/** @type {object} Object containing the breakpoint carousels. */
+		breakpointCarousels = {},
 		/** @type {bool} Device is compatiable i.e. not Android. */
 		isCompatible = os.isCompatible(),
 		/** @type {bool} Device supports touch. */
@@ -160,23 +162,57 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		/** @type {object} jQuery object containing carousel navs. */
 		$carouselNavs = $carousels.find(NAV_SELECTOR),
 		/** @type {object} jQuery object containing carousel paginations. */
-		$carouselPaginations = $carousels.find(PAGINATION_SELECTOR),
-		/** @type {object} jQuery object containing the breakpoint carousels. */
-		$breakpointCarousels = $();
+		$carouselPaginations = $carousels.find(PAGINATION_SELECTOR);
 
 	/**
-	 * Sets the $breakpointCarousels with a property for each breakpoint
+	 * Sets the breakpointCarousels with a property for each breakpoint
 	 * containing an jQuery object of carousels.
 	 *
 	 * @return {void}
 	 */
 	function setBreakpointCarousels() {
+		var $nonBreakpointCarousels = getNonBreakpointCarousels();
+
 		if (breakpointsSupported) {
 			for (var breakpoint in breakpointsSupported) {
-				$breakpointCarousels[breakpoint] =
-					$carousels.filter(CAROUSEL_SELECTOR + '-' + breakpoint);
+				breakpointCarousels[breakpoint] = $nonBreakpointCarousels.add(
+					$carousels.filter(CAROUSEL_SELECTOR + '-' + breakpoint)
+				);
 			}
 		}
+	}
+	/**
+	 * Gets all carousels that don't specify any breakpoint.
+	 *
+	 * @return {object} jQuery object of all non-breakpoint carousels
+	 */
+	function getNonBreakpointCarousels() {
+		return getNonBreakpointElements(
+			$carousels,
+			CAROUSEL_SELECTOR
+		);
+	}
+	/**
+	 * Filters a set of elements to get all of them that don't have breakpoint
+	 * specific selectors formated {breakpointPrefixSelector}-{breakpoint}.
+	 *
+	 * @param {object} $elements jQuery object of elements
+	 * @param {string} breakpointPrefixSelector The prefix used before -breakpoint
+	 * @return {object} jQuery object of all non-breakpoint elements
+	 */
+	function getNonBreakpointElements($elements, breakpointPrefixSelector) {
+		var $nonBreakpointElements = $();
+
+		if (breakpointsSupported) {
+			$nonBreakpointElements = $elements;
+
+			for (var breakpoint in breakpointsSupported) {
+				$nonBreakpointElements =
+					$nonBreakpointElements.not(breakpointPrefixSelector + '-' + breakpoint);
+			}
+		}
+
+		return $nonBreakpointElements;
 	}
 	/**
 	 * Set the jQuery object to include new carousels, updates the breakpoint
@@ -207,13 +243,13 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 	function getBreakpointCarousels() {
 		for (var breakpoint in breakpointsSupported) {
 			if (breakpoints.is(breakpoint)) {
-				if ($breakpointCarousels[breakpoint]) {
-					return $breakpointCarousels[breakpoint];
+				if (breakpointCarousels[breakpoint]) {
+					return breakpointCarousels[breakpoint];
 				}
 			}
 		}
 
-		return {};
+		return $();
 	}
 	/**
 	 * Removes all inline css and js classes for carousels and unbinds events.
@@ -342,7 +378,7 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 	 * Get the breakpoint carousel slides for a given carousel.
 	 *
 	 * @param {object} $carousel jQuery object for a carousel
-	 * @return {object} jQuery object containing current breakpoint slide for a carousels
+	 * @return {object} jQuery object containing current breakpoint slides for a carousels
 	 */
 	function getBreakpointSlides($carousel) {
 		var currentBreakpointClassSuffix = '';
@@ -357,7 +393,21 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 
 		return $carousel
 			.find(SLIDE_SELECTOR + currentBreakpointClassSuffix)
+			.add(getNonBreakpointSlides($carousel))
 			.not(SLIDE_HIDDEN_SELECTOR);
+	}
+	/**
+	 * Get the all carousel slides for a given carousel that do not specify any
+	 * breakpoint.
+	 *
+	 * @param {object} $carousel jQuery object for a carousel
+	 * @return {object} jQuery object containing all non-breakpoint slides for a carousels
+	 */
+	function getNonBreakpointSlides($carousel) {
+		return getNonBreakpointElements(
+			$carousel.find(SLIDE_SELECTOR),
+			SLIDE_SELECTOR
+		);
 	}
 	/**
 	 * Gets the slide with the _active class finds the first breakpoint slide
@@ -481,7 +531,7 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 	function getCarouselInner($carousel) {
 		var $firstSlide = getBreakpointSlides($carousel).first();
 
-		return $firstSlide.parent(CAROUSEL_INNER_SELECTOR);
+		return $firstSlide.parents(CAROUSEL_INNER_SELECTOR).first();
 	}
 	/**
 	 * Sets global vars used in all carousel move events.
