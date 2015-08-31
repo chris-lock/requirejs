@@ -7,27 +7,28 @@
  * @see	http://requirejs.org/
  */
 requirejs.config({
-	baseUrl: '/_js',
+	baseUrl: '../_js',
 	paths: {
 		// libs
 		async: 'libs/async',
 		jquery: 'libs/jquery/jquery-1.10.2.min',
 
 		// utils
-		breakpoints: 'utils/breakpoints',
-		cookies: 'utils/cookies',
-		dispatcher: 'utils/dispatcher',
-		// geolocation: 'utils/geolocation',
-		// googleMaps: 'utils/google-maps',
-		// googleMapsApi: 'utils/google-maps-api',
-		imageLoader: 'utils/image-loader',
-		nthChild: 'utils/nth-child',
-		os: 'utils/os',
-		viewport: 'utils/viewport',
-		youtube: 'utils/youtube',
+		Breakpoints: 'utils/breakpoints',
+		Browser: 'utils/browser',
+		Cookies: 'utils/cookies',
+		Dispatcher: 'utils/dispatcher',
+		Geolocation: 'utils/geolocation',
+		GoogleMaps: 'utils/google-maps',
+		GoogleMapsApi: 'utils/google-maps-api',
+		ImageLoader: 'utils/image-loader',
+		NthChild: 'utils/nth-child',
+		Viewport: 'utils/viewport',
+		Youtube: 'utils/youtube',
 
 		// modules
-		carousel: 'modules/carousel',
+		Module: 'modules/module',
+		Carousel: 'modules/carousel',
 	},
 	urlArgs: (new Date()).getTime()
 });
@@ -44,4 +45,4 @@ requirejs.config({
  * @param {object} jquery jQuery library.
  * @return {void}
  */
-define(['loader', 'breakpoints', 'cookies', 'dispatcher', 'imageLoader', 'nthChild', 'viewport', 'youtube']);
+define(['test']);

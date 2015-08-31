@@ -1,17 +1,17 @@
 /**
- * A utility for detecting geolocation support and getting current geolocation. 
+ * A utility for detecting geolocation support and getting current geolocation.
  * Wrttien to handle US locations and assuming Google Maps API v3.
  *
  * @src https://developers.google.com/maps/documentation/geocoding/#Results
  *
  * @author Chris Lock
  *
- * @param {object} googleMaps Google Maps v3.
- * @param {object} dispatcher Dispatcher utility.
- * @param {object} cookies Cookies utility.
+ * @param {object} GoogleMaps Google Maps v3.
+ * @param {object} Dispatcher Dispatcher utility.
+ * @param {object} Cookies Cookies utility.
  * @return {object} Public methods.
  */
- define(['googleMaps', 'dispatcher', 'cookies'], function(googleMaps, dispatcher, cookies) {
+ define(['GoogleMaps', 'Dispatcher', 'Cookies'], function(GoogleMaps, Dispatcher, Cookies) {
 		/** @constant The cookie name. */
 	var COOKIE_NAME = 'MM_LOCATION',
 		/** @constant The cookie expiration in hours. */
@@ -47,8 +47,8 @@
 	 * @return {void}
 	 */
 	function updateLocation() {
-		var locationCookie = cookies.get(COOKIE_NAME);
-		
+		var locationCookie = Cookies.get(COOKIE_NAME);
+
 		if (locationCookie.isBrowserLocation) {
 			getLocation(callbacks.onUpdate);
 		}
@@ -85,10 +85,10 @@
 	 * @return {void}
 	 */
 	function fireLocationCallback(callbacks) {
-		dispatcher.fireCallbacks(callbacks, location);
+		Dispatcher.fireCallbacks(callbacks, location);
 	}
 	/**
-	 * Gets a normalized location object from Google maps and handles success or 
+	 * Gets a normalized location object from Google maps and handles success or
 	 * failure.
 	 *
 	 * @param {object} position The object returned by navigator.geolocation.getCurrentPosition.
@@ -96,7 +96,7 @@
 	 * @return {void}
 	 */
 	function handleGeolocationSuccess(position, callbacks) {
-		googleMaps.getLocationFromLatLng(
+		GoogleMaps.getLocationFromLatLng(
 			'geolocation',
 			position.coords.latitude + ',' + position.coords.longitude,
 			function(googleLocation) {
@@ -115,10 +115,10 @@
 		googleLocation.isBrowserLocation = true;
 		location = googleLocation;
 
-		cookies.set(COOKIE_NAME, location, COOKIE_EXPIRATION_IN_MINUTES);
+		Cookies.set(COOKIE_NAME, location, COOKIE_EXPIRATION_IN_MINUTES);
 
 		locationIsReady = true;
-		
+
 		fireLocationCallback(callbacks);
 	}
 	/**
@@ -137,7 +137,7 @@
 	 * @return {void}
 	 */
 	function fireErrorCallbacks(message) {
-		dispatcher.fireCallbacks(callbacks.onError, message);
+		Dispatcher.fireCallbacks(callbacks.onError, message);
 	}
 	/**
 	 * Fires error callbacks with approprite messages
@@ -173,7 +173,7 @@
 			getLocation([callback]);
 		},
 		/**
-		 * Adds a function to be fired when location is update, which occurs 
+		 * Adds a function to be fired when location is update, which occurs
 		 * when get is called or on page load after the initial request.
 		 *
 		 * @param {function} callback A callback function to fire when geolocation is updated.
@@ -197,7 +197,7 @@
 		 * @return {void}
 		 */
 		unSet: function() {
-			cookies.unSet(COOKIE_NAME);
+			Cookies.unSet(COOKIE_NAME);
 		}
 	};
 });

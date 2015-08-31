@@ -18,11 +18,16 @@
 	</head>
 
 	<body>
-		<div id="one" style="height: 3000px">
-			<a href="#two">two</a>
+		<div class="one" data-module="fake">
+			<div class="child a"></div>
 		</div>
-		<div id="two"></div>
 
-		<script data-main="../_js/main" src="../_js/libs/require/require-2.1.8.min.js"></script>
+		<div class="two" data-module="fake">
+			<div class="child b"></div>
+		</div>
+
+		<div class="three" data-module="dumb"></div>
+
+		<script data-main="../_js/main" src="../_js/libs/require/require-2.1.16.min.js"></script>
 	</body>
 </html>

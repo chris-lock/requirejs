@@ -48,10 +48,11 @@
  * @author Chris Lock
  *
  * @param {object} jquery jQuery library.
- * @param {object} breakpoints Breakpoints utility.
+ * @param {object} Breakpoints Breakpoints utility.
+ * @param {object} Loader Loader utility.
  * @return {object} Public methods.
  */
-define(['jquery', 'breakpoints', 'loader'], function($, breakpoints, loader) {
+define(['jquery', 'Breakpoints', 'Loader'], function($, Breakpoints, Loader) {
 		/** @constant The data tag for image loading. */
 	var	DATA_SRC = 'data-src',
 		/** @constant The defult image width data attr. */
@@ -87,7 +88,7 @@ define(['jquery', 'breakpoints', 'loader'], function($, breakpoints, loader) {
 		breakpointCurrent = '';
 
 	/**
-	 * Registers the util method with the loader and loads the images for all
+	 * Registers the util method with the Loader and loads the images for all
 	 * elements.
 	 *
 	 * @return {void}
@@ -95,9 +96,9 @@ define(['jquery', 'breakpoints', 'loader'], function($, breakpoints, loader) {
 	function load() {
 		breakpointCurrent = getBreakpointCurrent();
 
-		loader.registerUtilMethod(loadImages);
+		Loader.registerUtilMethod(loadImages);
 		loadImages();
-		breakpoints.change(updateImages);
+		Breakpoints.change(updateImages);
 	}
 	/**
 	 * Get the current breakpoint.
@@ -106,7 +107,7 @@ define(['jquery', 'breakpoints', 'loader'], function($, breakpoints, loader) {
 	 */
 	function getBreakpointCurrent() {
 		for (var breakpoint in breakpointsSupported) {
-			if (breakpoints.is(breakpoint)) {
+			if (Breakpoints.is(breakpoint)) {
 				return breakpoint;
 			}
 		}
@@ -209,7 +210,7 @@ define(['jquery', 'breakpoints', 'loader'], function($, breakpoints, loader) {
 		var defaultImageUrl = $this.attr(DATA_SRC),
 			breakpointImageUrlDataAttr = DATA_SRC_BASE + getBreakpointCurrent();
 
-		if (breakpoints.is('retina')) {
+		if (Breakpoints.is('retina')) {
 			defaultImageUrl = $this.attr(breakpointImageUrlDataAttr) || defaultImageUrl;
 			breakpointImageUrlDataAttr += DATA_SRC_RETINA_BASE;
 		}
@@ -254,7 +255,7 @@ define(['jquery', 'breakpoints', 'loader'], function($, breakpoints, loader) {
 			widthBreakpoint = $this.attr(widthBreakpointAttr),
 			widthDefault = $this.attr(DATA_WIDTH),
 			width = widthBreakpoint || widthDefault || 0,
-			resolution = (breakpoints.is('retina')) ? 2 : 1;
+			resolution = (Breakpoints.is('retina')) ? 2 : 1;
 
 		imgObj.widthBreakpoint = widthBreakpoint;
 		imgObj.widthDefault = widthDefault;

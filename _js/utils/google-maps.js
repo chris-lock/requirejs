@@ -4,11 +4,11 @@
  *
  * @author Chris Lock
  *
- * @param {object} googleMapsApi The Google Maps API.
- * @param {object} dispatcher Dispatcher utility.
+ * @param {object} GoogleMapsApi The Google Maps API.
+ * @param {object} Dispatcher Dispatcher utility.
  * @return {object} Public methods.
  */
-define(['googleMapsApi', 'dispatcher'], function(googleMapsApi, dispatcher) {
+define(['GoogleMapsApi', 'Dispatcher'], function(GoogleMapsApi, Dispatcher) {
 		/** @constant The maximum zoom for the map. */
 	var MARKER_CLASS_CLICKED = ' _clicked',
 		/** @constant The class for active markers. */
@@ -51,14 +51,14 @@ define(['googleMapsApi', 'dispatcher'], function(googleMapsApi, dispatcher) {
 				zoom: 8,
 				zoomControl: true,
 				zoomControlOptions: {
-					position: googleMapsApi.ControlPosition.RIGHT_TOP,
-					style: googleMapsApi.ZoomControlStyle.SMALL
+					position: GoogleMapsApi.ControlPosition.RIGHT_TOP,
+					style: GoogleMapsApi.ZoomControlStyle.SMALL
 				}
 			};
 
-		mapSettings.center = center || new googleMapsApi.LatLng(37.09024, -95.712891);
+		mapSettings.center = center || new GoogleMapsApi.LatLng(37.09024, -95.712891);
 
-		var map = new googleMapsApi.Map(document.getElementById(id), mapSettings);
+		var map = new GoogleMapsApi.Map(document.getElementById(id), mapSettings);
 
 		/**
 		 * Forces the map to redraw in case it wasn't visible when created.
@@ -66,7 +66,7 @@ define(['googleMapsApi', 'dispatcher'], function(googleMapsApi, dispatcher) {
 		 * @return {object} The Google Map object for method chaining
 		 */
 		map.forceRedraw = function() {
-			googleMapsApi.event.trigger(this, 'resize');
+			GoogleMapsApi.event.trigger(this, 'resize');
 
 			return this;
 		}
@@ -82,7 +82,7 @@ define(['googleMapsApi', 'dispatcher'], function(googleMapsApi, dispatcher) {
 			this.markers = this.markers || [];
 			this.markers.push(marker);
 
-			this.bounds = this.bounds || new googleMapsApi.LatLngBounds();
+			this.bounds = this.bounds || new GoogleMapsApi.LatLngBounds();
 			this.bounds.extend(markerLocation);
 
 			return this;
@@ -168,7 +168,7 @@ define(['googleMapsApi', 'dispatcher'], function(googleMapsApi, dispatcher) {
 	function getLatLngObj(latLng) {
 		var	latLngArray = latLng.split(' ').join('').split(',');
 
-		return new googleMapsApi.LatLng(latLngArray[0], latLngArray[1]);
+		return new GoogleMapsApi.LatLng(latLngArray[0], latLngArray[1]);
 	}
 	/**
 	 * Adds a geolocate request to a queue that is fired on a timeout to avoid
@@ -279,7 +279,7 @@ define(['googleMapsApi', 'dispatcher'], function(googleMapsApi, dispatcher) {
 	 * @return {void}
 	 */
 	function geolocate(paramName, paramValue, geolocateCallback, successCallback, failureCallback, map, settings, onclickFunction) {
-		var googleGeocoder = new googleMapsApi.Geocoder(),
+		var googleGeocoder = new GoogleMapsApi.Geocoder(),
 			paramObj = {};
 
 		paramObj[paramName] = paramValue;
@@ -312,10 +312,10 @@ define(['googleMapsApi', 'dispatcher'], function(googleMapsApi, dispatcher) {
 	 * @return {void}
 	 */
 	function handleGeocoderResponse(results, status, geolocateCallback, successCallback, failureCallback, map, settings, onclickFunction) {
-		if (status == googleMapsApi.GeocoderStatus.OK && results.length) {
+		if (status == GoogleMapsApi.GeocoderStatus.OK && results.length) {
 			geolocateCallback(results[0], successCallback, map, settings, onclickFunction);
 		} else {
-			dispatcher.fireCallbacks([failureCallback], status);
+			Dispatcher.fireCallbacks([failureCallback], status);
 		}
 	}
 	/**
@@ -327,7 +327,7 @@ define(['googleMapsApi', 'dispatcher'], function(googleMapsApi, dispatcher) {
 	 * @return {void}
 	 */
 	function geolocateCallbackLocation(result, successCallback) {
-		dispatcher.fireCallbacks([successCallback], getLocation(result));
+		Dispatcher.fireCallbacks([successCallback], getLocation(result));
 	}
 	/**
 	 * Returns an updated location object based on the Google Maps response.
@@ -444,10 +444,10 @@ define(['googleMapsApi', 'dispatcher'], function(googleMapsApi, dispatcher) {
 		markerSettings.position = markerLocation;
 		markerSettings.map = map;
 		markerSettings.icon = markIconEmpty;
-		markerSettings.labelAnchor = new googleMapsApi.Point(13, 40);
+		markerSettings.labelAnchor = new GoogleMapsApi.Point(13, 40);
 		markerSettings.labelInBackground = false;
 
-		var marker = new googleMapsApi.MarkerWithLabel(markerSettings);
+		var marker = new GoogleMapsApi.MarkerWithLabel(markerSettings);
 
 		/**
 		 * Makes a given marker the active marker on the map by adding a class.
@@ -513,18 +513,18 @@ define(['googleMapsApi', 'dispatcher'], function(googleMapsApi, dispatcher) {
 	 * @return {void}
 	 */
 	function updateMakerEvents(marker, successCallback, onclickFunction) {
-		dispatcher.fireCallbacks([successCallback], marker);
+		Dispatcher.fireCallbacks([successCallback], marker);
 
-		googleMapsApi.event.addListener(marker, "mouseover", function() {
+		GoogleMapsApi.event.addListener(marker, "mouseover", function() {
 			marker.addClass(MARKER_CLASS_HOVER);
 		});
 
-		googleMapsApi.event.addListener(marker, "mouseout", function() {
+		GoogleMapsApi.event.addListener(marker, "mouseout", function() {
 			marker.removeClass(MARKER_CLASS_HOVER);
 		});
 
 		if ($.isFunction(onclickFunction)) {
-			googleMapsApi.event.addListener(marker, "click", function() {
+			GoogleMapsApi.event.addListener(marker, "click", function() {
 				onclickFunction(marker);
 			});
 		}

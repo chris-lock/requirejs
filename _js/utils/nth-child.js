@@ -9,9 +9,10 @@
  * @author Chris Lock
  *
  * @param {object} jquery jQuery library.
+ * @param {object} Loader Loader utility.
  * @return {object} Public methods.
  */
- define(['jquery', 'loader'], function($, loader) {
+ define(['jquery', 'Loader'], function($, Loader) {
 		/** @constant The nth-child data attr. */
 	var	DATA_NTH_CHILD = 'data-nth_child',
 		/** @constant The class added once loaded. */
@@ -26,14 +27,14 @@
 		NTH_CLASS_BASE = 'nth-child-{{NTH_SELECTOR}}';
 
 	/**
-	 * Registers the util method with the loader and adds classes to existing
+	 * Registers the util method with the Loader and adds classes to existing
 	 * elements.
 	 *
 	 * @param {object} $element The element to look inside for nth-child elements
 	 * @return {void}
 	 */
 	function load() {
-		loader.registerUtilMethod(updateNthChildElements);
+		Loader.registerUtilMethod(updateNthChildElements);
 		updateNthChildElements($(document));
 	}
 	/**

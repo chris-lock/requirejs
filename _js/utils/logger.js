@@ -6,11 +6,11 @@
  *
  * @author Chris Lock
  *
- * @param {object} os OS utility.
+ * @param {object} Browser Browser utility.
  * @param {object} jquery jQuery library.
  * @return {object} Public methods.
  */
-define(['os', 'jquery'], function(os, $) {
+define(['Browser', 'jquery'], function(Browser, $) {
 		/** @constant The class used for the html logger. */
 	var	HTML_LOGGER_CLASS = '_html-logger',
 		/** @constant The css used for the html logger. */
@@ -60,7 +60,7 @@ define(['os', 'jquery'], function(os, $) {
 	 * @return {void}
 	 */
 	function load() {
-		supportsConsole = (console && !os.supportsTouch() && !os.isIE8());
+		supportsConsole = (console && !Browser.supportsTouch() && !Browser.isIE8());
 		shouldUseConsole = supportsConsole;
 	}
 	/**

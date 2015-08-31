@@ -6,11 +6,11 @@
  * @author Chris Lock
  *
  * @param {object} jquery jQuery library.
- * @param {object} breakpoints Breakpoints utility.
- * @param {object} os OS utility.
+ * @param {object} Breakpoints Breakpoints utility.
+ * @param {object} Browser Browser utility.
  * @return {object} Public methods.
  */
-define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
+define(['jquery', 'Breakpoints', 'Browser'], function($, Breakpoints, Browser) {
 		/** @constant Carousel class. */
 	var CAROUSEL_CLASS = 'carousel',
 		/** @constant Carousel selector. */
@@ -115,9 +115,9 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 		/** @type {object} Object containing the breakpoint carousels. */
 		breakpointCarousels = {},
 		/** @type {bool} Device is compatiable i.e. not Android. */
-		isCompatible = os.isCompatible(),
+		isCompatible = BrowserisCompatible(),
 		/** @type {bool} Device supports touch. */
-		isTouch = os.supportsTouch(),
+		isTouch = BrowsersupportsTouch(),
 		/** @type {bool} Has the minimum drag been reached for mobile scroll lock. */
 		dragStartIsLongEnough = false,
 		/** @type {bool} Is a carousel dragging. */
@@ -302,7 +302,7 @@ define(['jquery', 'breakpoints', 'os'], function($, breakpoints, os) {
 			[updateType](clickEvent, preventDragClick);
 	}
 	/**
-	 * Gets either the touch or mouse event depending on the os. Adds the jQuery
+	 * Gets either the touch or mouse event depending on the Browser Adds the jQuery
 	 * namespace to every item in the array. Only accepts start, move, and end.
 	 *
 	 * @return {string} The event name

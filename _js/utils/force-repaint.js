@@ -6,11 +6,11 @@
  * @author Chris Lock
  *
  * @param {object} jquery jQuery library.
- * @param {object} os OS utility.
- * @param {object} viewport Viewport utility.
+ * @param {object} Browser Browser utility.
+ * @param {object} Viewport Viewport utility.
  * @return {object} Public methods.
  */
-define(['jquery', 'os', 'viewport'], function($, os, viewport) {
+define(['jquery', 'Browser', 'Viewport'], function($, Browser, Viewport) {
 		/** @type {object} jQuery object containing the items for repaint on height change. */
 	var $repaintElementsHeight = $('.force-repaint-height'),
 		/** @type {object} jQuery object containing the items for repaint on width change. */
@@ -22,11 +22,11 @@ define(['jquery', 'os', 'viewport'], function($, os, viewport) {
 	 * @return {void}
 	 */
 	function load() {
-		if (!os.isCompatible()) {
-			viewport.resizeHeight(function() {
+		if (!Browser.isCompatible()) {
+			Viewport.resizeHeight(function() {
 				repaint($repaintElementsHeight);
 			});
-			viewport.resizeWidth(function() {
+			Viewport.resizeWidth(function() {
 				repaint($repaintElementsWidth);
 			});
 		}
